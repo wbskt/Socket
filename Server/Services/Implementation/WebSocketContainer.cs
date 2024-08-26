@@ -1,8 +1,6 @@
 ﻿using System.Net.WebSockets;
-using Wbskt.Server;
-using Wbskt.Server.Services;
 
-namespace Server.Services.Implementation
+namespace Wbskt.Server.Services.Implementation
 {
     public class WebSocketContainer : IWebSocketContainer
     {

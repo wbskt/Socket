@@ -1,7 +1,7 @@
 ﻿using System.Net.WebSockets;
 using System.Text;
 
-namespace Wbskt.Server
+namespace Wbskt.Server.Services
 {
     public static class SocketExtensions
     {

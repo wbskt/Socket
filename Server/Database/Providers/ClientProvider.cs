@@ -1,9 +1,8 @@
 ﻿using System.Data;
 using System.Data.SqlClient;
-using Wbskt.Server.Database;
 using Wbskt.Server.Services;
 
-namespace Wbskt.Server.Providers
+namespace Wbskt.Server.Database.Providers
 {
     public class ClientProvider : IClientProvider
     {

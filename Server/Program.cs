@@ -1,4 +1,7 @@
-using Server;
+using Wbskt.Server.Database;
+using Wbskt.Server.Database.Providers;
+using Wbskt.Server.Services;
+using Wbskt.Server.Services.Implementation;
 
 namespace Wbskt.Server
 {
@@ -6,11 +9,20 @@ namespace Wbskt.Server
     {
         private static readonly CancellationTokenSource Cts = new();
 
-        public static async void Main(string[] args)
+        public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
+            builder.Services.AddSingleton<IClientProvider, ClientProvider>();
+            builder.Services.AddSingleton<IServerInfoProvider, ServerInfoProvider>();
+            builder.Services.AddSingleton<IConnectionStringProvider, ConnectionStringProvider>();
+
+            builder.Services.AddSingleton<IClientService, ClientService>();
+            builder.Services.AddSingleton<IWebSocketContainer, WebSocketContainer>();
+            builder.Services.AddSingleton<IServerInfoService, ServerInfoService>();
+
+            builder.Services.AddJwtAuthentication(builder.Configuration);
 
             builder.Services.AddControllers();
 
@@ -23,12 +35,13 @@ namespace Wbskt.Server
             app.UseAuthorization();
 
             app.Lifetime.ApplicationStopping.Register(Cts.Cancel);
+            app.Lifetime.ApplicationStarted.Register(app.Services.GetRequiredService<IServerInfoService>().RegisterServer);
 
             app.MapControllers();
 
-            var tasks = new[] { app.RunAsync(), TaskExcecuter.GetInstance().Run(Cts.Token) };
+            app.RunAsync();
 
-            await Task.WhenAll(tasks);
+            TaskExcecuter.GetInstance().Run(Cts.Token);
         }
     }
 }

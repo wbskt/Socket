@@ -1,4 +1,4 @@
-﻿namespace Server
+﻿namespace Wbskt.Server.Services
 {
     public class TaskExcecuter
     {
@@ -29,7 +29,7 @@
         }
 
         // this must be only called once. preferably from the Main()
-        public async Task Run(CancellationToken ct) 
+        public void Run(CancellationToken ct) 
         {
             if (running) return;
             
@@ -44,7 +44,7 @@
                     tasks.Add(taskQueue.Dequeue());
                 }
 
-                await Task.WhenAll(tasks);
+                Task.WhenAll(tasks).Wait();
             }
         }
     }

@@ -1,7 +1,7 @@
 ﻿
 using Wbskt.Server.Database;
 
-namespace Server.Services.Implementation
+namespace Wbskt.Server.Services.Implementation
 {
     public class ClientService : IClientService
     {

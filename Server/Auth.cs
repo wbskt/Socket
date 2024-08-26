@@ -64,6 +64,18 @@ namespace Wbskt.Server
             return int.Parse(claim.Value);
         }
 
+        public static int GetServerId(this IPrincipal principal)
+        {
+            if (principal.Identity is not ClaimsIdentity claimsPrincipal)
+                throw new AuthenticationException("Unable to get csid");
+
+            var claim = claimsPrincipal.Claims.FirstOrDefault(c => c.Type.Equals("sad", StringComparison.InvariantCulture));
+            if (claim == null)
+                throw new AuthenticationException("Unable to get csid");
+
+            return int.Parse(claim.Value.Split(':').First());
+        }
+
         public static Guid GetTokenId(this IPrincipal principal)
         {
             if (principal.Identity is not ClaimsIdentity claimsPrincipal)

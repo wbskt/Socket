@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Server.Services;
 using Wbskt.Server.Services;
 
 namespace Wbskt.Server.Controllers
@@ -13,12 +12,14 @@ namespace Wbskt.Server.Controllers
         private readonly ILogger<WebSocketsController> logger;
         private readonly IWebSocketContainer webSocketContainer;
         private readonly IClientService clientService;
+        private readonly IServerInfoService serverInfo;
 
-        public WebSocketsController(ILogger<WebSocketsController> logger, IWebSocketContainer webSocketContainer, IClientService clientService)
+        public WebSocketsController(ILogger<WebSocketsController> logger, IWebSocketContainer webSocketContainer, IClientService clientService, IServerInfoService serverInfo)
         {
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
             this.webSocketContainer = webSocketContainer ?? throw new ArgumentNullException(nameof(webSocketContainer));
             this.clientService = clientService ?? throw new ArgumentNullException(nameof(clientService));
+            this.serverInfo = serverInfo ?? throw new ArgumentNullException(nameof(serverInfo));
         }
 
         public async Task ConnectAsync()
@@ -26,7 +27,9 @@ namespace Wbskt.Server.Controllers
             var tid = User.GetTokenId();
             var csid = User.GetChannelSubscriberId();
             var cid = User.GetClientId();
-            if (!clientService.VerifyAndInvalidateToken(cid, tid)) // verify and invalidate token
+            var sid = User.GetServerId();
+
+            if (sid != serverInfo.GetCurrentServerId() && !clientService.VerifyAndInvalidateToken(cid, tid)) // verify and invalidate token
             {
                 HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
             }

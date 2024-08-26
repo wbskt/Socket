@@ -1,4 +1,4 @@
-﻿namespace Server.Services
+﻿namespace Wbskt.Server.Services
 {
     public interface IClientService
     {
