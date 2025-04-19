@@ -1,7 +1,6 @@
-﻿namespace Wbskt.Server.Services
+﻿namespace Wbskt.Server.Services;
+
+public interface IClientService
 {
-    public interface IClientService
-    {
-        bool VerifyAndInvalidateToken(int clientId, Guid tokenId);
-    }
+    bool VerifyAndInvalidateToken(int clientId, Guid tokenId);
 }

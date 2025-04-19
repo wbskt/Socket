@@ -1,29 +1,22 @@
-﻿
-using Wbskt.Server.Database;
+﻿using Wbskt.Common.Providers;
 
-namespace Wbskt.Server.Services.Implementation
+namespace Wbskt.Server.Services.Implementation;
+
+public class ClientService(ILogger<ClientService> logger, IClientProvider clientProvider) : IClientService
 {
-    public class ClientService : IClientService
+    private readonly ILogger<ClientService> logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly IClientProvider clientProvider = clientProvider ?? throw new ArgumentNullException(nameof(clientProvider));
+
+    public bool VerifyAndInvalidateToken(int clientId, Guid tokenId)
     {
-        private readonly ILogger<ClientService> logger;
-        private readonly IClientProvider clientProvider;
-
-        public ClientService(ILogger<ClientService> logger, IClientProvider clientProvider)
+        var client = clientProvider.GetClientConnectionById(clientId);
+        if (client.TokenId != tokenId)
         {
-            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            this.clientProvider = clientProvider ?? throw new ArgumentNullException(nameof(clientProvider));
-        }
-
-        public bool VerifyAndInvalidateToken(int clientId, Guid tokenId)
-        {
-            var client = clientProvider.GetClientConenctionById(clientId);
-            if (client.TokenId == tokenId)
-            {
-                clientProvider.InvalidateToken(clientId);
-                return true;
-            }
-
             return false;
         }
+
+        clientProvider.InvalidateToken(clientId);
+        return true;
+
     }
 }

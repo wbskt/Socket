@@ -1,9 +1,8 @@
-﻿namespace Wbskt.Server.Services
-{
-    public interface IServerInfoService
-    {
-        void RegisterServer();
+﻿namespace Wbskt.Server.Services;
 
-        int GetCurrentServerId();
-    }
+public interface IServerInfoService
+{
+    void RegisterServer();
+
+    int GetCurrentServerId();
 }

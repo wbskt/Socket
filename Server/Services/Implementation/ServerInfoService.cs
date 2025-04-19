@@ -1,68 +1,66 @@
 ﻿using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Hosting.Server;
 using System.Net;
-using Wbskt.Server.Database;
+using Wbskt.Common.Contracts;
+using Wbskt.Common.Providers;
 
-namespace Wbskt.Server.Services.Implementation
+namespace Wbskt.Server.Services.Implementation;
+
+public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server, IServerInfoProvider serverInfoProvider) : IServerInfoService
 {
-    public class ServerInfoService : IServerInfoService
+    private readonly ILogger<ServerInfoService> logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly IServer server = server ?? throw new ArgumentNullException(nameof(server));
+    private readonly IServerInfoProvider serverInfoProvider = serverInfoProvider ?? throw new ArgumentNullException(nameof(serverInfoProvider));
+
+    private static int _serverId;
+
+    public int GetCurrentServerId()
     {
-        private readonly ILogger<ServerInfoService> logger;
-        private readonly IServer server;
-        private readonly IServerInfoProvider serverInfoProvider;
-        
-        private bool registered;
-        private static int serverId;
+        return _serverId;
+    }
 
-        public ServerInfoService(ILogger<ServerInfoService> logger, IServer server, IServerInfoProvider serverInfoProvider)
+    public void RegisterServer()
+    {
+        var servers = serverInfoProvider.GetAll();
+
+        var host = GetCurrentHostAddresses().First();
+
+        var serverInfo = new ServerInfo
         {
-            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            this.server = server ?? throw new ArgumentNullException(nameof(server));
-            this.serverInfoProvider = serverInfoProvider ?? throw new ArgumentNullException(nameof(serverInfoProvider));
+            Address = host,
+        };
+
+        if (servers.Any(s => s.Address == host))
+        {
+            serverInfo = servers.First(s => s.Address == host);
+            _serverId = serverInfo.ServerId;
+            // active status will be updated by the core.server
+            serverInfoProvider.UpdateServerStatus(_serverId, false);
+        }
+        else
+        {
+            _serverId = serverInfoProvider.RegisterServer(serverInfo);
+        }
+    }
+
+    private HostString[] GetCurrentHostAddresses()
+    {
+        var host = Dns.GetHostEntry(Dns.GetHostName()).AddressList[1].MapToIPv4().ToString();
+        var addresses = server.Features.Get<IServerAddressesFeature>()!.Addresses;
+        if (addresses.Count == 0)
+        {
+            throw new InvalidOperationException();
         }
 
-        public int GetCurrentServerId()
+        var ports = addresses.Select(a => new Uri(a).Port).ToArray();
+
+        var hostStrings = new HostString[ports.Length];
+
+        for (var i = 0; i < ports.Length; i++)
         {
-            return serverId;
+            hostStrings[i] = new HostString(host, ports[i]);
         }
 
-        public void RegisterServer()
-        {
-            if (registered)
-            {
-                return;
-            }
-            var host = GetLocalFileServerHosts().First();
-
-            var server = new ServerInfo
-            {
-                Active = true,
-                Address = host,
-            };
-
-            serverId = serverInfoProvider.RegisterServer(server);
-            registered = true;
-        }
-
-        private IEnumerable<HostString> GetLocalFileServerHosts()
-        {
-            var host = Dns.GetHostEntry(Dns.GetHostName()).AddressList[1].MapToIPv4().ToString();
-            var addresses = server.Features.Get<IServerAddressesFeature>()!.Addresses;
-            if (addresses.Count == 0)
-            {
-                throw new InvalidOperationException();
-            }
-
-            var ports = addresses.Select(a => new Uri(a).Port).ToArray();
-
-            var hostStrings = new HostString[ports.Length];
-
-            for (var i = 0; i < ports.Length; i++)
-            {
-                hostStrings[i] = new HostString(host, ports[i]);
-            }
-
-            return hostStrings;
-        }
+        return hostStrings;
     }
 }
