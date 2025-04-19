@@ -6,5 +6,5 @@ public interface IWebSocketContainer
 {
     Task Listen(WebSocket webSocket, Guid channelSubscriberId, int clientId);
 
-    void SendMessage(Guid channelSubscriberId, string message);
+    void SendMessage(Guid publisherId, string message);
 }
