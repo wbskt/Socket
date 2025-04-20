@@ -15,11 +15,15 @@ public static class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        Environment.SetEnvironmentVariable("LogPath", ProgramDataPath);
+        if (!Directory.Exists(ProgramDataPath))
+        {
+            Directory.CreateDirectory(ProgramDataPath);
+        }
+
         // Configure Serilog
         Log.Logger = new LoggerConfiguration()
             .ReadFrom.Configuration(builder.Configuration)
-            .WriteTo.Console()
-            .WriteTo.File(Path.Combine(ProgramDataPath, "SocketLog_.log"), rollingInterval: RollingInterval.Day)
             .CreateLogger();
 
         builder.Host.UseSerilog(Log.Logger);
@@ -39,6 +43,7 @@ public static class Program
             .AddClientAuthScheme(builder.Configuration)
             .AddCoreServerAuthScheme(builder.Configuration)
             .AddSocketServerAuthScheme(builder.Configuration);
+        builder.Services.AddAuthorization();
 
         builder.Services.AddControllers();
 
@@ -48,6 +53,7 @@ public static class Program
 
         app.UseHttpsRedirection();
 
+        app.UseAuthentication();
         app.UseAuthorization();
 
         app.Lifetime.ApplicationStopping.Register(Cts.Cancel);

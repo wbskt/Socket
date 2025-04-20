@@ -5,11 +5,10 @@ using Wbskt.Common.Providers;
 
 namespace Wbskt.Server.Services.Implementation;
 
-public class WebSocketContainer(ILogger<WebSocketContainer> logger, IClientService clientService, IChannelsProvider channelsProvider) : IWebSocketContainer
+public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsProvider channelsProvider) : IWebSocketContainer
 {
     private readonly ILogger<WebSocketContainer> logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly IClientService clientService = clientService ?? throw new ArgumentNullException(nameof(clientService));
-    private readonly Dictionary<Guid, HashSet<int>> subscriptionMap = new(); // init load all subscriptions assigned to this socket server
+    private readonly Dictionary<Guid, HashSet<int>> subscriptionMap = new();
     private readonly Dictionary<int, WebSocket> clientMap = new();
 
     public async Task Listen(WebSocket webSocket, Guid channelSubscriberId, int clientId)
@@ -28,18 +27,19 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IClientServi
 
         try
         {
-            logger.LogDebug("connection established to client: {client}", clientId);
+            logger.LogInformation("connection established to client: {client}", clientId);
             await Task.Run(() =>
             {
                 while (webSocket.State == WebSocketState.Open)
                 {
                 }
             });
-            logger.LogDebug("connection terminated to client: {client}", clientId);
+            logger.LogInformation("connection terminated to client: {client}", clientId);
         }
         catch (Exception ex)
         {
-            logger.LogError("connection errored to client: {client}", clientId);
+            logger.LogError("connection errored to client: {client}, error: {error}", clientId, ex.Message);
+            logger.LogTrace("connection errored to client: {client}, error: {error}", clientId, ex.ToString());
         }
         finally
         {
@@ -67,7 +67,11 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IClientServi
         var clientIdSet = clientIds.ToHashSet();
         foreach (var clientId in clientIdSet)
         {
-            TaskProcessor.Enqueue(clientMap[clientId].WriteAsync(message));
+            logger.LogDebug("enqueueing send action to processor. client: {clientId}, message: {message}", clientId, message);
+            TaskProcessor.Enqueue(clientMap[clientId].WriteAsync(message).ContinueWith(_ =>
+            {
+                logger.LogDebug("message send to client: {clientId}", clientId);
+            }));
         }
     }
 }

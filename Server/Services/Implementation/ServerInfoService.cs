@@ -30,16 +30,20 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server
             Address = host,
         };
 
+        logger.LogDebug("current socket-server address is {address}", serverInfo.Address);
         if (servers.Any(s => s.Address == host))
         {
             serverInfo = servers.First(s => s.Address == host);
             _serverId = serverInfo.ServerId;
             // active status will be updated by the core.server
+            logger.LogInformation("this server({serverId}) is already registered", _serverId);
             serverInfoProvider.UpdateServerStatus(_serverId, false);
         }
         else
         {
+            logger.LogInformation("registering current server");
             _serverId = serverInfoProvider.RegisterServer(serverInfo);
+            logger.LogInformation("registered current server with id {serverId}", _serverId);
         }
     }
 

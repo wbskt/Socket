@@ -23,9 +23,11 @@ public class WebSocketsController(ILogger<WebSocketsController> logger, IWebSock
         var csid = User.GetChannelSubscriberId();
         var cid = User.GetClientId();
         var sid = User.GetSocketServerId();
+        var cname = User.GetClientName();
 
         if (sid != serverInfo.GetCurrentServerId() && !clientService.VerifyAndInvalidateToken(cid, tid)) // verify and invalidate token
         {
+            logger.LogWarning("client is not authorized to make connect to this server({serverId}), or the provided token is expired or used", cname);
             HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
         }
         else if (HttpContext.WebSockets.IsWebSocketRequest)
@@ -38,16 +40,13 @@ public class WebSocketsController(ILogger<WebSocketsController> logger, IWebSock
             }
             catch (Exception ex)
             {
-                logger.LogError(ex.Message);
-                logger.LogTrace(new EventId(0), ex, ex.Message);
-            }
-            finally
-            {
-                webSocket.Dispose();
+                logger.LogError("unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, cid , ex.Message);
+                logger.LogTrace("unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, cid , ex.ToString());
             }
         }
         else
         {
+            logger.LogWarning("attempted request by client:{clientName} is not a websocket request", cname);
             HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
         }
     }

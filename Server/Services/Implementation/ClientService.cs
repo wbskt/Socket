@@ -12,9 +12,11 @@ public class ClientService(ILogger<ClientService> logger, IClientProvider client
         var client = clientProvider.GetClientConnectionById(clientId);
         if (client.TokenId != tokenId)
         {
+            logger.LogWarning("this token: {tokenId} is already used once", tokenId);
             return false;
         }
 
+        logger.LogDebug("invalidating token: {tokenId} of client: {clientId}", tokenId, clientId);
         clientProvider.InvalidateToken(clientId);
         return true;
 
