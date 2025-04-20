@@ -1,3 +1,4 @@
+using Serilog;
 using Wbskt.Common;
 using Wbskt.Common.Extensions;
 using Wbskt.Server.Services;
@@ -8,10 +9,20 @@ namespace Wbskt.Server;
 public static class Program
 {
     private static readonly CancellationTokenSource Cts = new();
+    private static readonly string ProgramDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Wbskt");
 
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+        // Configure Serilog
+        Log.Logger = new LoggerConfiguration()
+            .ReadFrom.Configuration(builder.Configuration)
+            .WriteTo.Console()
+            .WriteTo.File(Path.Combine(ProgramDataPath, "SocketLog_.log"), rollingInterval: RollingInterval.Day)
+            .CreateLogger();
+
+        builder.Host.UseSerilog(Log.Logger);
 
         // Add services to the container.
         builder.Services.ConfigureCommonServices();
