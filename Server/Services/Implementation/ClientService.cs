@@ -19,6 +19,10 @@ public class ClientService(ILogger<ClientService> logger, IClientProvider client
         logger.LogDebug("invalidating token: {tokenId} of client: {clientId}", tokenId, clientId);
         clientProvider.InvalidateToken(clientId);
         return true;
+    }
 
+    public int GetClientIdByUniqueId(Guid clientUniqueId)
+    {
+        return clientProvider.FindClientIdByClientUniqueId(clientUniqueId);
     }
 }

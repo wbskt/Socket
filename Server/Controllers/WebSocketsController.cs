@@ -21,27 +21,36 @@ public class WebSocketsController(ILogger<WebSocketsController> logger, IWebSock
     {
         var tid = User.GetTokenId();
         var csid = User.GetChannelSubscriberId();
-        var cid = User.GetClientId();
+        var cuid = User.GetClientId();
         var sid = User.GetSocketServerId();
         var cname = User.GetClientName();
 
-        if (sid != serverInfo.GetCurrentServerId() && !clientService.VerifyAndInvalidateToken(cid, tid)) // verify and invalidate token
+        if (sid != serverInfo.GetCurrentServerId()) // verify and invalidate token
         {
-            logger.LogWarning("client is not authorized to make connect to this server({serverId}), or the provided token is expired or used", cname);
+            logger.LogWarning("client is not authorized to make connect to this server({serverId})", cname);
             HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
         }
         else if (HttpContext.WebSockets.IsWebSocketRequest)
         {
-            using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+            var clientId = clientService.GetClientIdByUniqueId(cuid);
+            if (clientService.VerifyAndInvalidateToken(clientId, tid))
+            {
+                using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
 
-            try
-            {
-                await webSocketContainer.Listen(webSocket, csid, cid);
+                try
+                {
+                    await webSocketContainer.Listen(webSocket, csid, clientId);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError("unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, clientId , ex.Message);
+                    logger.LogTrace("unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, clientId , ex.ToString());
+                }
             }
-            catch (Exception ex)
+            else
             {
-                logger.LogError("unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, cid , ex.Message);
-                logger.LogTrace("unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, cid , ex.ToString());
+                HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+                logger.LogWarning("the provided token is expired or used");
             }
         }
         else
