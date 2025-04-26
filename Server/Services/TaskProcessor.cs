@@ -4,18 +4,18 @@ public class TaskProcessor
 {
     private readonly Queue<Task> taskQueue = new Queue<Task>();
 
-    private bool running = false;
+    private bool running;
 
-    private static TaskProcessor? instance;
+    private static TaskProcessor? _instance;
 
     private TaskProcessor()
     {
-        instance = this;
+        _instance = this;
     }
 
     public static TaskProcessor GetInstance()
     {
-        return instance ?? new TaskProcessor();
+        return _instance ?? new TaskProcessor();
     }
 
     public static void Enqueue(Task task)
@@ -24,9 +24,12 @@ public class TaskProcessor
     }
 
     // this must be only called once. preferably from the Main()
-    public void Run(CancellationToken ct)
+    public void Run(ILogger<TaskProcessor> logger, CancellationToken ct)
     {
-        if (running) return;
+        if (running)
+        {
+            return;
+        }
 
         running = true;
         while (!ct.IsCancellationRequested)
@@ -43,9 +46,9 @@ public class TaskProcessor
 
                 Task.WhenAll(tasks).Wait(ct);
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                Console.WriteLine(e);
+                logger.LogError("error while processing tasks: {message}", ex.Message);
             }
         }
     }

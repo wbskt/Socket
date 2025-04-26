@@ -63,7 +63,7 @@ public static class Program
         app.UseWebSockets();
 
         app.RunAsync();
-
-        TaskProcessor.GetInstance().Run(Cts.Token);
+        var logger = app.Services.GetRequiredService<ILogger<TaskProcessor>>();
+        TaskProcessor.GetInstance().Run(logger, Cts.Token);
     }
 }
