@@ -11,9 +11,16 @@ public static class Program
     public static readonly CancellationTokenSource Cts = new();
     private static readonly string ProgramDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Wbskt");
 
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+        // Detect if we are running as a service
+        var isWindowsService = !(Environment.UserInteractive || args.Contains("--console"));
+        if (isWindowsService)
+        {
+            builder.Host.UseWindowsService();
+        }
 
         Environment.SetEnvironmentVariable("LogPath", ProgramDataPath);
         if (!Directory.Exists(ProgramDataPath))
@@ -35,6 +42,7 @@ public static class Program
         builder.Services.AddSingleton<IWebSocketContainer, WebSocketContainer>();
         builder.Services.AddSingleton<IServerInfoService, ServerInfoService>();
 
+        // Authentication & Authorization
         builder.Services.AddAuthentication(opt =>
             {
                 opt.DefaultAuthenticateScheme = Constants.AuthSchemes.ClientScheme;
@@ -47,23 +55,22 @@ public static class Program
 
         builder.Services.AddControllers();
 
+        // Register TaskProcessor as a Background Service
+        builder.Services.AddHostedService<TaskProcessorHostedService>();
+
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
-
         app.UseHttpsRedirection();
-
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseWebSockets();
 
         app.Lifetime.ApplicationStopping.Register(Cts.Cancel);
         app.Lifetime.ApplicationStarted.Register(app.Services.GetRequiredService<IServerInfoService>().RegisterServer);
 
         app.MapControllers();
-        app.UseWebSockets();
 
-        app.RunAsync();
-        var logger = app.Services.GetRequiredService<ILogger<TaskProcessor>>();
-        TaskProcessor.GetInstance().Run(logger, Cts.Token);
+        await app.RunAsync(Cts.Token);
     }
 }
