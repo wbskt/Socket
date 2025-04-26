@@ -39,7 +39,7 @@ public class WebSocketsController(ILogger<WebSocketsController> logger, IWebSock
 
                 try
                 {
-                    await webSocketContainer.Listen(webSocket, csid, clientId);
+                    await webSocketContainer.Listen(webSocket, csid, clientId, Program.Cts.Token);
                 }
                 catch (Exception ex)
                 {

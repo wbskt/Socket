@@ -11,11 +11,10 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
     private readonly Dictionary<Guid, HashSet<int>> subscriptionMap = new();
     private readonly Dictionary<int, WebSocket> clientMap = new();
 
-    public async Task Listen(WebSocket webSocket, Guid channelSubscriberId, int clientId)
+    public async Task Listen(WebSocket webSocket, Guid channelSubscriberId, int clientId, CancellationToken ct)
     {
         clientMap.Add(clientId, webSocket);
 
-        // todo: validate channel id and it's assigned to this socketserver.
         if (subscriptionMap.TryGetValue(channelSubscriberId, out var clientIds))
         {
             clientIds.Add(clientId);
@@ -28,12 +27,20 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
         try
         {
             logger.LogInformation("connection established to client: {client}", clientId);
-            await Task.Run(() =>
+
+            while (webSocket.State == WebSocketState.Open)
             {
-                while (webSocket.State == WebSocketState.Open)
+                var result = await webSocket.ReadAsync(ct);
+                if (result.ReciveResult.MessageType != WebSocketMessageType.Close)
                 {
+                    continue;
                 }
-            });
+
+                logger.LogInformation("client: {client} requested close.", clientId);
+                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                break;
+            }
+
             logger.LogInformation("connection terminated to client: {client}", clientId);
         }
         catch (Exception ex)
@@ -43,6 +50,8 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
         }
         finally
         {
+            webSocket.Dispose();
+            logger.LogInformation("connection to client: {client} disposed", clientId);
             clientMap.Remove(clientId);
             subscriptionMap[channelSubscriberId].Remove(clientId);
         }

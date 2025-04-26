@@ -8,7 +8,7 @@ namespace Wbskt.Server;
 
 public static class Program
 {
-    private static readonly CancellationTokenSource Cts = new();
+    public static readonly CancellationTokenSource Cts = new();
     private static readonly string ProgramDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Wbskt");
 
     public static void Main(string[] args)
