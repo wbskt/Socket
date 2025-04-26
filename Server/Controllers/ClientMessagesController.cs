@@ -15,7 +15,10 @@ public class ClientMessagesController(ILogger<ClientMessagesController> logger, 
     [HttpGet("")]
     public IActionResult SendMessage(Guid publisherId)
     {
-        var payload = new ClientPayload();
+        var payload = new ClientPayload()
+        {
+            Data = "null"
+        };
         return SendMessage(publisherId, payload);
     }
 
