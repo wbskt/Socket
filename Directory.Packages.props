@@ -14,5 +14,6 @@
     <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="8.0.2" />
     <PackageVersion Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageVersion Include="System.Data.SqlClient" Version="4.8.6" />
+    <PackageVersion Include="WixToolset.Heat" Version="6.0.0" />
   </ItemGroup>
 </Project>
