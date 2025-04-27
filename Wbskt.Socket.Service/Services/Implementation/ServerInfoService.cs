@@ -11,6 +11,7 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server
     private readonly ILogger<ServerInfoService> logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly IServer server = server ?? throw new ArgumentNullException(nameof(server));
     private readonly IServerInfoProvider serverInfoProvider = serverInfoProvider ?? throw new ArgumentNullException(nameof(serverInfoProvider));
+    private static bool _registered;
 
     private static int _serverId;
 
@@ -21,29 +22,44 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server
 
     public void RegisterServer()
     {
-        var servers = serverInfoProvider.GetAll();
-
-        var host = GetCurrentHostAddresses().First();
-
-        var serverInfo = new ServerInfo
+        while (_registered == false)
         {
-            Address = host,
-        };
+            IReadOnlyCollection<ServerInfo> servers;
+            try
+            {
+                servers = serverInfoProvider.GetAll();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError("error while trying to register server: {error}", ex.Message);
+                logger.LogTrace("error while trying to register server: {error}", ex.ToString());
+                continue;
+            }
 
-        logger.LogDebug("current socket-server address is {address}", serverInfo.Address);
-        if (servers.Any(s => s.Address == host))
-        {
-            serverInfo = servers.First(s => s.Address == host);
-            _serverId = serverInfo.ServerId;
-            // active status will be updated by the core.server
-            logger.LogInformation("this server({serverId}) is already registered", _serverId);
-            serverInfoProvider.UpdateServerStatus(_serverId, false);
-        }
-        else
-        {
-            logger.LogInformation("registering current server");
-            _serverId = serverInfoProvider.RegisterServer(serverInfo);
-            logger.LogInformation("registered current server with id {serverId}", _serverId);
+            var host = GetCurrentHostAddresses().First();
+
+            var serverInfo = new ServerInfo
+            {
+                Address = host,
+            };
+
+            logger.LogDebug("current socket-server address is {address}", serverInfo.Address);
+            if (servers.Any(s => s.Address == host))
+            {
+                serverInfo = servers.First(s => s.Address == host);
+                _serverId = serverInfo.ServerId;
+                // active status will be updated by the core.server
+                logger.LogInformation("this server({serverId}) is already registered", _serverId);
+                serverInfoProvider.UpdateServerStatus(_serverId, false);
+                _registered = true;
+            }
+            else
+            {
+                logger.LogInformation("registering current server");
+                _serverId = serverInfoProvider.RegisterServer(serverInfo);
+                _registered = true;
+                logger.LogInformation("registered current server with id {serverId}", _serverId);
+            }
         }
     }
 
