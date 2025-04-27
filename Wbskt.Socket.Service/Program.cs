@@ -1,10 +1,10 @@
 using Serilog;
 using Wbskt.Common;
 using Wbskt.Common.Extensions;
-using Wbskt.Server.Services;
-using Wbskt.Server.Services.Implementation;
+using Wbskt.Socket.Service.Services;
+using Wbskt.Socket.Service.Services.Implementation;
 
-namespace Wbskt.Server;
+namespace Wbskt.Socket.Service;
 
 public static class Program
 {

@@ -1,6 +1,6 @@
-﻿using Wbskt.Server.Services;
+﻿using Wbskt.Socket.Service.Services;
 
-namespace Wbskt.Server
+namespace Wbskt.Socket.Service
 {
     public class TaskProcessorHostedService(ILogger<TaskProcessor> logger) : BackgroundService
     {

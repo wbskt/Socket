@@ -2,9 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Wbskt.Common;
 using Wbskt.Common.Extensions;
-using Wbskt.Server.Services;
+using Wbskt.Socket.Service.Services;
 
-namespace Wbskt.Server.Controllers;
+namespace Wbskt.Socket.Service.Controllers;
 
 [Route("ws")]
 [ApiController]

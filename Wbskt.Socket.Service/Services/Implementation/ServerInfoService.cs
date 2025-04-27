@@ -1,10 +1,10 @@
-﻿using Microsoft.AspNetCore.Hosting.Server.Features;
+﻿using System.Net;
 using Microsoft.AspNetCore.Hosting.Server;
-using System.Net;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Wbskt.Common.Contracts;
 using Wbskt.Common.Providers;
 
-namespace Wbskt.Server.Services.Implementation;
+namespace Wbskt.Socket.Service.Services.Implementation;
 
 public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server, IServerInfoProvider serverInfoProvider) : IServerInfoService
 {

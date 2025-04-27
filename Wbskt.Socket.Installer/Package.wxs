@@ -44,7 +44,7 @@
 
     <ComponentGroup Id="ManualServiceComponentGroup">
       <Component Id="WbsktSocketServiceComponent" Guid="4aa39aa8-0199-434b-b27a-123456789123" Directory="WbsktSocketDir">
-        <File Id="WbsktSocketExe" Source="Wbskt.Server.exe" KeyPath="yes" />
+        <File Id="WbsktSocketExe" Source="Wbskt.Socket.Service.exe" KeyPath="yes" />
 
         <ServiceInstall
           Id="WbsktSocketService"

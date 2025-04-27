@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Wbskt.Common;
 
-namespace Wbskt.Server.Controllers;
+namespace Wbskt.Socket.Service.Controllers;
 
 [Route("ping")]
 [ApiController]

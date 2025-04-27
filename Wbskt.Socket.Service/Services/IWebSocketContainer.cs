@@ -1,6 +1,6 @@
 ﻿using System.Net.WebSockets;
 
-namespace Wbskt.Server.Services;
+namespace Wbskt.Socket.Service.Services;
 
 public interface IWebSocketContainer
 {

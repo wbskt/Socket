@@ -18,7 +18,7 @@
 	</ItemGroup>
 
   <ItemGroup>
-	  <ProjectReference Include="..\..\Server\Wbskt.Common\Wbskt.Common.csproj" />
+	  <ProjectReference Include="..\..\Core\Wbskt.Common\Wbskt.Common.csproj" />
 	</ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
-﻿namespace Wbskt.Server.Services;
+﻿namespace Wbskt.Socket.Service.Services;
 
 public class TaskProcessor
 {

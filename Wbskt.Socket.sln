@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.9.34902.65
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wbskt.Server", "Server\Wbskt.Server.csproj", "{835F185C-B082-4D05-B2CA-E7CD44D6148A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wbskt.Socket.Service", "Wbskt.Socket.Service\Wbskt.Socket.Service.csproj", "{835F185C-B082-4D05-B2CA-E7CD44D6148A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wbskt.Common", "..\Server\Wbskt.Common\Wbskt.Common.csproj", "{6E97DEA1-FF1C-4CEB-A1EF-C3217B2B5B18}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wbskt.Common", "..\Core\Wbskt.Common\Wbskt.Common.csproj", "{6E97DEA1-FF1C-4CEB-A1EF-C3217B2B5B18}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionItems", "{C1BE4684-45EB-4C4F-B11B-24AA46D7FFD1}"
 	ProjectSection(SolutionItems) = preProject
@@ -13,7 +13,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionIt
 		nuget.config = nuget.config
 	EndProjectSection
 EndProject
-Project("{B7DD6F7E-DEF8-4E67-B5B7-07EF123DB6F0}") = "Wbskt.Server.Installer", "Wbskt.Server.Installer\Wbskt.Server.Installer.wixproj", "{8099B413-90DF-4768-80EA-1C8537FC9EDC}"
+Project("{B7DD6F7E-DEF8-4E67-B5B7-07EF123DB6F0}") = "Wbskt.Socket.Installer", "Wbskt.Socket.Installer\Wbskt.Socket.Installer.wixproj", "{8099B413-90DF-4768-80EA-1C8537FC9EDC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

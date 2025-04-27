@@ -1,6 +1,6 @@
 ﻿using Wbskt.Common.Providers;
 
-namespace Wbskt.Server.Services.Implementation;
+namespace Wbskt.Socket.Service.Services.Implementation;
 
 public class ClientService(ILogger<ClientService> logger, IClientProvider clientProvider) : IClientService
 {

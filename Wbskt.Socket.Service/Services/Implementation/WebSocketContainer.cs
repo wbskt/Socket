@@ -1,9 +1,8 @@
 ﻿using System.Net.WebSockets;
-using Wbskt.Common;
 using Wbskt.Common.Extensions;
 using Wbskt.Common.Providers;
 
-namespace Wbskt.Server.Services.Implementation;
+namespace Wbskt.Socket.Service.Services.Implementation;
 
 public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsProvider channelsProvider) : IWebSocketContainer
 {
