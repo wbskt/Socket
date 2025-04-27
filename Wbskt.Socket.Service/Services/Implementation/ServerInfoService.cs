@@ -6,7 +6,7 @@ using Wbskt.Common.Providers;
 
 namespace Wbskt.Socket.Service.Services.Implementation;
 
-public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server, IServerInfoProvider serverInfoProvider) : IServerInfoService
+public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server, IServerInfoProvider serverInfoProvider, IHostEnvironment environment) : IServerInfoService
 {
     private readonly ILogger<ServerInfoService> logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly IServer server = server ?? throw new ArgumentNullException(nameof(server));
@@ -29,7 +29,7 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server
             try
             {
                 servers = serverInfoProvider.GetAll();
-                host = GetCurrentHostAddresses().First();
+                host = (await GetCurrentHostAddresses()).First();
             }
             catch (Exception ex)
             {
@@ -66,13 +66,13 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server
         }
     }
 
-    private HostString[] GetCurrentHostAddresses()
+    private async Task<HostString[]> GetCurrentHostAddresses()
     {
-        var host = Dns.GetHostEntry(Dns.GetHostName()).AddressList[1].MapToIPv4().ToString();
+        var host = await GetIpAddress();
         var addresses = server.Features.Get<IServerAddressesFeature>()!.Addresses;
         if (addresses.Count == 0)
         {
-            throw new InvalidOperationException();
+            throw new InvalidOperationException("server address feature is not initialized yet");
         }
 
         var ports = addresses.Select(a => new Uri(a).Port).ToArray();
@@ -85,5 +85,29 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server
         }
 
         return hostStrings;
+    }
+
+    private async Task<string> GetIpAddress()
+    {
+        if (environment.IsProduction())
+        {
+            var client = new HttpClient
+            {
+                BaseAddress = new Uri("https://ifconfig.me"),
+            };
+
+            var result = await client.GetAsync("ip");
+            if (result.IsSuccessStatusCode)
+            {
+                return await result.Content.ReadAsStringAsync();
+            }
+
+            return string.Empty;
+        }
+
+        var hostName = Dns.GetHostName();
+        var hostEntry = await Dns.GetHostEntryAsync(hostName);
+        var host = hostEntry.AddressList[1].MapToIPv4().ToString();
+        return host;
     }
 }
