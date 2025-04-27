@@ -25,9 +25,11 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server
         while (_registered == false)
         {
             IReadOnlyCollection<ServerInfo> servers;
+            HostString host;
             try
             {
                 servers = serverInfoProvider.GetAll();
+                host = GetCurrentHostAddresses().First();
             }
             catch (Exception ex)
             {
@@ -38,7 +40,6 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server
                 continue;
             }
 
-            var host = GetCurrentHostAddresses().First();
 
             var serverInfo = new ServerInfo
             {
