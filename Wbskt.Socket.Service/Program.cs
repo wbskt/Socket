@@ -67,7 +67,6 @@ public static class Program
         app.UseWebSockets();
 
         app.Lifetime.ApplicationStopping.Register(Cts.Cancel);
-        app.Lifetime.ApplicationStarted.Register(app.Services.GetRequiredService<IServerInfoService>().RegisterServer);
 
         app.MapControllers();
 

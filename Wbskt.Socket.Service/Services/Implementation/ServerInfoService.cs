@@ -20,7 +20,7 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server
         return _serverId;
     }
 
-    public void RegisterServer()
+    public async Task RegisterServer()
     {
         while (_registered == false)
         {
@@ -33,6 +33,8 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server
             {
                 logger.LogError("error while trying to register server: {error}", ex.Message);
                 logger.LogTrace("error while trying to register server: {error}", ex.ToString());
+
+                await Task.Delay(TimeSpan.FromSeconds(10));
                 continue;
             }
 

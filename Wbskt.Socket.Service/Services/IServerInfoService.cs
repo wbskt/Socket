@@ -2,7 +2,7 @@
 
 public interface IServerInfoService
 {
-    void RegisterServer();
+    Task RegisterServer();
 
     int GetCurrentServerId();
 }
