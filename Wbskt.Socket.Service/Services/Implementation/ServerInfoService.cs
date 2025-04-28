@@ -105,6 +105,7 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server
 
         var hostName = Dns.GetHostName();
         var hostEntry = await Dns.GetHostEntryAsync(hostName);
+        logger.LogInformation("the domain name of this server is: {domainName}", hostEntry.HostName);
         var host = hostEntry.AddressList[1].MapToIPv4().ToString();
         return host;
     }
