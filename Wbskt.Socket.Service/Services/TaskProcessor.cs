@@ -48,7 +48,7 @@ public class TaskProcessor
             }
             catch (Exception ex)
             {
-                logger.LogError("error while processing tasks: {message}", ex.Message);
+                logger.LogError(ex, "error while processing tasks: {message}", ex.Message);
             }
         }
     }

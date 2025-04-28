@@ -33,9 +33,7 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server
             }
             catch (Exception ex)
             {
-                logger.LogError("error while trying to register server: {error}", ex.Message);
-                logger.LogTrace("error while trying to register server: {error}", ex.ToString());
-
+                logger.LogError(ex, "error while trying to register server: {error}", ex.Message);
                 await Task.Delay(TimeSpan.FromSeconds(10));
                 continue;
             }

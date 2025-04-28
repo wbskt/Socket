@@ -43,8 +43,7 @@ public class WebSocketsController(ILogger<WebSocketsController> logger, IWebSock
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError("unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, clientId , ex.Message);
-                    logger.LogTrace("unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, clientId , ex.ToString());
+                    logger.LogError(ex, "unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, clientId , ex.Message);
                 }
             }
             else
