@@ -12,16 +12,14 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
 
     public async Task Listen(WebSocket webSocket, Guid channelSubscriberId, int clientId, CancellationToken ct)
     {
-        clientMap.Add(clientId, webSocket);
+        clientMap[clientId] = webSocket;
 
-        if (subscriptionMap.TryGetValue(channelSubscriberId, out var clientIds))
+        if (!subscriptionMap.TryGetValue(channelSubscriberId, out var clientIds))
         {
-            clientIds.Add(clientId);
+            clientIds = new HashSet<int>();
+            subscriptionMap[channelSubscriberId] = clientIds;
         }
-        else
-        {
-            subscriptionMap.Add(channelSubscriberId, new HashSet<int> { clientId });
-        }
+        clientIds.Add(clientId);
 
         try
         {
@@ -29,57 +27,84 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
 
             while (webSocket.State == WebSocketState.Open)
             {
-                var result = await webSocket.ReadAsync(ct);
-                if (result.ReciveResult.MessageType != WebSocketMessageType.Close)
+                var result = await webSocket.ReadAsync(ct).ConfigureAwait(false);
+                if (result.ReciveResult.MessageType == WebSocketMessageType.Close)
                 {
-                    continue;
+                    logger.LogInformation("client: {client} requested close.", clientId);
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None).ConfigureAwait(false);
+                    break;
                 }
-
-                logger.LogInformation("client: {client} requested close.", clientId);
-                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-                break;
             }
 
             logger.LogInformation("connection terminated to client: {client}", clientId);
         }
         catch (Exception ex)
         {
-            logger.LogError("connection errored to client: {client}, error: {error}", clientId, ex.Message);
-            logger.LogTrace("connection errored to client: {client}, error: {error}", clientId, ex.ToString());
+            logger.LogError(ex, "connection errored to client: {client}", clientId);
         }
         finally
         {
+            DisposeWebSocket(webSocket, clientId, channelSubscriberId);
+        }
+    }
+
+    private void DisposeWebSocket(WebSocket webSocket, int clientId, Guid channelSubscriberId)
+    {
+        try
+        {
             webSocket.Dispose();
-            logger.LogInformation("connection to client: {client} disposed", clientId);
-            clientMap.Remove(clientId);
-            subscriptionMap[channelSubscriberId].Remove(clientId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "error disposing WebSocket for client: {client}", clientId);
+        }
+
+        logger.LogInformation("connection to client: {client} disposed", clientId);
+        clientMap.Remove(clientId);
+        if (subscriptionMap.TryGetValue(channelSubscriberId, out var clientIds))
+        {
+            clientIds.Remove(clientId);
+            if (clientIds.Count == 0)
+            {
+                subscriptionMap.Remove(channelSubscriberId);
+            }
         }
     }
 
     public void SendMessage(Guid publisherId, string message)
     {
-        var subscriberIds = channelsProvider.GetChannelPublisherId(publisherId).Select(c => c.ChannelSubscriberId).ToList();
-        var clientIds = new List<int>();
-        foreach (var subscriberId in subscriberIds)
+        var clientIds = channelsProvider.GetChannelPublisherId(publisherId)
+            .SelectMany(c => subscriptionMap.TryGetValue(c.ChannelSubscriberId, out var ids) ? ids : Enumerable.Empty<int>())
+            .ToHashSet();
+
+        if (clientIds.Any())
         {
-            if (subscriptionMap.TryGetValue(subscriberId, out var ids))
+            foreach (var clientId in clientIds)
             {
-                clientIds.AddRange(ids);
-            }
-            else
-            {
-                logger.LogInformation("no clients subscribed for the publisher: {publisher}", publisherId);
+                if (clientMap.TryGetValue(clientId, out var webSocket))
+                {
+                    logger.LogDebug("enqueueing send action to processor. Client: {clientId}, Message: {message}", clientId, message);
+                    TaskProcessor.Enqueue(webSocket.WriteAsync(message).ContinueWith(task =>
+                    {
+                        if (task.IsFaulted)
+                        {
+                            logger.LogError(task.Exception, "failed to send message to client: {clientId}", clientId);
+                        }
+                        else
+                        {
+                            logger.LogDebug("message sent to client: {clientId}", clientId);
+                        }
+                    }));
+                }
+                else
+                {
+                    logger.LogWarning("client: {clientId} not found in client map.", clientId);
+                }
             }
         }
-
-        var clientIdSet = clientIds.ToHashSet();
-        foreach (var clientId in clientIdSet)
+        else
         {
-            logger.LogDebug("enqueueing send action to processor. client: {clientId}, message: {message}", clientId, message);
-            TaskProcessor.Enqueue(clientMap[clientId].WriteAsync(message).ContinueWith(_ =>
-            {
-                logger.LogDebug("message send to client: {clientId}", clientId);
-            }));
+            logger.LogInformation("no clients subscribed for the publisher: {publisher}", publisherId);
         }
     }
 }
