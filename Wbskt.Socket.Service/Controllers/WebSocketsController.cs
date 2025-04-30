@@ -11,11 +11,6 @@ namespace Wbskt.Socket.Service.Controllers;
 [Authorize(AuthenticationSchemes = Constants.AuthSchemes.ClientScheme)]
 public class WebSocketsController(ILogger<WebSocketsController> logger, IWebSocketContainer webSocketContainer, IClientService clientService, IServerInfoService serverInfo) : ControllerBase
 {
-    private readonly ILogger<WebSocketsController> logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly IWebSocketContainer webSocketContainer = webSocketContainer ?? throw new ArgumentNullException(nameof(webSocketContainer));
-    private readonly IClientService clientService = clientService ?? throw new ArgumentNullException(nameof(clientService));
-    private readonly IServerInfoService serverInfo = serverInfo ?? throw new ArgumentNullException(nameof(serverInfo));
-
     [HttpGet]
     public async Task ConnectAsync()
     {

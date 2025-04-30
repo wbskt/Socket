@@ -1,20 +1,27 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Wbskt.Common;
+﻿using Microsoft.AspNetCore.Mvc;
+using Wbskt.Common.Contracts;
+using Wbskt.Socket.Service.Services;
 
 namespace Wbskt.Socket.Service.Controllers;
 
-[Route("ping")]
+[Route("health")]
 [ApiController]
-[Authorize(AuthenticationSchemes = Constants.AuthSchemes.CoreServerScheme)]
-public class SystemHealthController(ILogger<SystemHealthController> logger) : ControllerBase
+// [Authorize(AuthenticationSchemes = Constants.AuthSchemes.CoreServerScheme)] todo: add it back
+public class SystemHealthController(ILogger<SystemHealthController> logger, IWebSocketContainer socketContainer) : ControllerBase
 {
-    private readonly ILogger<SystemHealthController> logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
-    [HttpGet]
+    [HttpGet("/ping")]
     public IActionResult Ping()
     {
-        logger.LogDebug("ping-pong");
-        return Ok("pong");
+        return Ok();
+    }
+
+    [HttpGet]
+    public ActionResult<SocketServerHealth> GetHealth()
+    {
+        var health = new SocketServerHealth
+        {
+            ActiveConnections = socketContainer.GetActiveClients()
+        };
+        return health;
     }
 }

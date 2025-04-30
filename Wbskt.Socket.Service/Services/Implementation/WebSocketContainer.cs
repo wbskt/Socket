@@ -1,12 +1,12 @@
 ﻿using System.Net.WebSockets;
+using Wbskt.Common.Contracts;
 using Wbskt.Common.Extensions;
 using Wbskt.Common.Providers;
 
 namespace Wbskt.Socket.Service.Services.Implementation;
 
-public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsProvider channelsProvider) : IWebSocketContainer
+public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsProvider channelsProvider, IClientProvider clientProvider) : IWebSocketContainer
 {
-    private readonly ILogger<WebSocketContainer> logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly Dictionary<Guid, HashSet<int>> subscriptionMap = new();
     private readonly Dictionary<int, WebSocket> clientMap = new();
 
@@ -106,5 +106,19 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
         {
             logger.LogInformation("no clients subscribed for the publisher: {publisher}", publisherId);
         }
+    }
+
+    public Connection[] GetActiveClients()
+    {
+        var map = new List<Connection>();
+        var channelIds = subscriptionMap.Keys;
+        var channels = channelIds.Select(channelsProvider.GetChannelSubscriberId).ToList(); // terrible approach (use bulk get)
+        foreach (var clientId in clientMap.Keys)
+        {
+            var cli = clientProvider.GetClientConnectionById(clientId); // terrible approach (use bulk get)
+            map.Add(new Connection(){ ClientName = cli.ClientName, ChannelName = channels.First(c => c.ChannelSubscriberId == cli.ChannelSubscriberId).ChannelName});
+        }
+
+        return map.ToArray();
     }
 }
