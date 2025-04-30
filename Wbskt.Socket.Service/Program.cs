@@ -41,6 +41,7 @@ public static class Program
         builder.Services.AddSingleton<IClientService, ClientService>();
         builder.Services.AddSingleton<IWebSocketContainer, WebSocketContainer>();
         builder.Services.AddSingleton<IServerInfoService, ServerInfoService>();
+        builder.Services.Configure<SocketServerConfiguration>(builder.Configuration.GetSection("Wbskt.Socket"));
 
         // Authentication & Authorization
         builder.Services.AddAuthentication(opt =>

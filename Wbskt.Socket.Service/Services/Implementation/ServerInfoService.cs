@@ -1,18 +1,16 @@
 ﻿using System.Net;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.Extensions.Options;
 using Wbskt.Common.Contracts;
 using Wbskt.Common.Providers;
 
 namespace Wbskt.Socket.Service.Services.Implementation;
 
-public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server, IServerInfoProvider serverInfoProvider, IHostEnvironment environment) : IServerInfoService
+public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonitor<SocketServerConfiguration> optionsMonitor, IServer server, IServerInfoProvider serverInfoProvider, IHostEnvironment environment) : IServerInfoService
 {
-    private readonly ILogger<ServerInfoService> logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly IServer server = server ?? throw new ArgumentNullException(nameof(server));
-    private readonly IServerInfoProvider serverInfoProvider = serverInfoProvider ?? throw new ArgumentNullException(nameof(serverInfoProvider));
     private static bool _registered;
-
+    private static ServerInfo _currentServerInfo = new();
     private static int _serverId;
 
     public int GetCurrentServerId()
@@ -38,30 +36,77 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server
                 continue;
             }
 
+            _currentServerInfo.Address = host;
 
-            var serverInfo = new ServerInfo
-            {
-                Address = host,
-            };
-
-            logger.LogDebug("current socket-server address is {address}", serverInfo.Address);
+            logger.LogDebug("current socket-server address is {address}", _currentServerInfo.Address);
             if (servers.Any(s => s.Address == host))
             {
-                serverInfo = servers.First(s => s.Address == host);
-                _serverId = serverInfo.ServerId;
+                //replace serverInfo with the one from the db
+                _currentServerInfo = servers.First(s => s.Address == host);
+                _serverId = _currentServerInfo.ServerId;
                 // active status will be updated by the core.server
+                CheckAndUpdatePublicDomainAddressFromDb(_currentServerInfo);
                 logger.LogInformation("this server({serverId}) is already registered", _serverId);
                 serverInfoProvider.UpdateServerStatus(_serverId, false);
+                CheckAndUpdatePublicDomainAddressFromAppSettings(optionsMonitor.CurrentValue);
                 _registered = true;
             }
             else
             {
                 logger.LogInformation("registering current server");
-                _serverId = serverInfoProvider.RegisterServer(serverInfo);
+                _serverId = serverInfoProvider.RegisterServer(_currentServerInfo);
+                CheckAndUpdatePublicDomainAddressFromAppSettings(optionsMonitor.CurrentValue);
+                _currentServerInfo.ServerId = _serverId;
                 _registered = true;
                 logger.LogInformation("registered current server with id {serverId}", _serverId);
             }
         }
+        optionsMonitor.OnChange(CheckAndUpdatePublicDomainAddressFromAppSettings);
+    }
+
+    private void CheckAndUpdatePublicDomainAddressFromAppSettings(SocketServerConfiguration configuration)
+    {
+        var host = _currentServerInfo.Address.Host;
+        string publicHost;
+        try
+        {
+            publicHost = Dns.GetHostAddresses(configuration.PublicDomainName).First().ToString();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "could not resolve the address: {publicAddr}", configuration.PublicDomainName);
+            return;
+        }
+
+        logger.LogInformation("system ip address is: {host}", host);
+        logger.LogInformation("configured domain name is: {domain}", configuration.PublicDomainName);
+        logger.LogInformation("{domain} point to: {ip}", configuration.PublicDomainName, publicHost);
+        if (string.Equals(host, publicHost, StringComparison.InvariantCultureIgnoreCase))
+        {
+            logger.LogWarning("updating db with the new configured domain address: {addr}", configuration.PublicDomainName);
+            serverInfoProvider.UpdatePublicDomainName(_currentServerInfo.ServerId, configuration.PublicDomainName);
+            _currentServerInfo.PublicDomainName = configuration.PublicDomainName;
+        }
+        else
+        {
+            logger.LogWarning("mismatch between domain name and current ipaddress (skipping db update)");
+        }
+    }
+
+    private void CheckAndUpdatePublicDomainAddressFromDb(ServerInfo serverInfo)
+    {
+        var host = serverInfo.Address.Host;
+        var publicHost = Dns.GetHostAddresses(serverInfo.PublicDomainName).First().ToString();
+        logger.LogInformation("system ip address is: {host}", host);
+        logger.LogInformation("configured domain name is: {domain}", serverInfo.PublicDomainName);
+        logger.LogInformation("{domain} point to: {ip}", serverInfo.PublicDomainName , publicHost);
+        if (string.Equals(host, publicHost, StringComparison.InvariantCultureIgnoreCase))
+        {
+            return;
+        }
+
+        logger.LogWarning("mismatch between domain name and current ipaddress (updating dbo.server)");
+        serverInfoProvider.UpdatePublicDomainName(serverInfo.ServerId, string.Empty);
     }
 
     private async Task<HostString[]> GetCurrentHostAddresses()
@@ -105,7 +150,6 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IServer server
 
         var hostName = Dns.GetHostName();
         var hostEntry = await Dns.GetHostEntryAsync(hostName);
-        logger.LogInformation("the domain name of this server is: {domainName}", hostEntry.HostName);
         var host = hostEntry.AddressList[1].MapToIPv4().ToString();
         return host;
     }
