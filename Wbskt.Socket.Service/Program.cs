@@ -68,6 +68,8 @@ public static class Program
 
         app.Lifetime.ApplicationStopping.Register(Cts.Cancel);
 
+        // register server
+        app.Lifetime.ApplicationStarted.Register(() => app.Services.GetRequiredService<IServerInfoService>().RegisterServer().Wait());
         app.MapControllers();
 
         await app.RunAsync(Cts.Token);

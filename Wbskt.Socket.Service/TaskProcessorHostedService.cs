@@ -6,8 +6,6 @@ namespace Wbskt.Socket.Service
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            // register server
-            await serverInfoService.RegisterServer();
             // Start your TaskProcessor with logging and cancellation
             await Task.Run(() => TaskProcessor.GetInstance().Run(logger, stoppingToken), stoppingToken);
         }
