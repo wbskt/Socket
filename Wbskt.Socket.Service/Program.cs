@@ -1,6 +1,8 @@
+using System.Data.SqlClient;
 using Serilog;
 using Wbskt.Common;
 using Wbskt.Common.Extensions;
+using Wbskt.Common.Providers;
 using Wbskt.Socket.Service.Services;
 using Wbskt.Socket.Service.Services.Implementation;
 
@@ -15,7 +17,7 @@ public static class Program
     {
         Environment.SetEnvironmentVariable(Constants.LoggingConstants.LogPath, ProgramDataPath);
         Environment.SetEnvironmentVariable(nameof(Constants.ServerType), Constants.ServerType.SocketServer);
-        
+
         var builder = WebApplication.CreateBuilder(args);
 
         // Detect if we are running as a service
@@ -68,11 +70,19 @@ public static class Program
         app.UseAuthorization();
         app.UseWebSockets();
 
-        app.Lifetime.ApplicationStopping.Register(Cts.Cancel);
+        app.MapControllers();
+
+        var connectionString = app.Services.GetRequiredService<IConnectionStringProvider>().ConnectionString;
+        SqlDependency.Start(connectionString);
 
         // register server
         app.Lifetime.ApplicationStarted.Register(() => app.Services.GetRequiredService<IServerInfoService>().RegisterServer().Wait());
-        app.MapControllers();
+
+        app.Lifetime.ApplicationStopping.Register(() =>
+        {
+            Cts.Cancel();
+            SqlDependency.Stop(connectionString);
+        });
 
         await app.RunAsync(Cts.Token);
     }
