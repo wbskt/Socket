@@ -11,6 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionIt
 	ProjectSection(SolutionItems) = preProject
 		Directory.Packages.props = Directory.Packages.props
 		nuget.config = nuget.config
+		global.json = global.json
 	EndProjectSection
 EndProject
 Project("{B7DD6F7E-DEF8-4E67-B5B7-07EF123DB6F0}") = "Wbskt.Socket.Installer", "Wbskt.Socket.Installer\Wbskt.Socket.Installer.wixproj", "{8099B413-90DF-4768-80EA-1C8537FC9EDC}"
