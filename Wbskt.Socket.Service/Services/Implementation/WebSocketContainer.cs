@@ -114,7 +114,7 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
         var channels = channelIds.Select(channelsProvider.GetChannelBySubscriberId).ToList();
 
         return clientProvider
-            .GetClientConnectionsByIds(clientMap.Keys)
+            .GetClientConnectionsByIds(clientMap.Keys.ToArray())
             .Select(clientId =>
                 new Connection
                 {
