@@ -12,6 +12,7 @@ public class SystemHealthController(ILogger<SystemHealthController> logger, IWeb
     [HttpGet("/ping")]
     public IActionResult Ping()
     {
+        logger.LogTrace("Ping received at {Time}", DateTime.UtcNow);
         return Ok();
     }
 

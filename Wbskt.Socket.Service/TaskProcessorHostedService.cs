@@ -2,7 +2,7 @@
 
 namespace Wbskt.Socket.Service
 {
-    public class TaskProcessorHostedService(ILogger<TaskProcessor> logger, IServerInfoService serverInfoService) : BackgroundService
+    public class TaskProcessorHostedService(ILogger<TaskProcessor> logger) : BackgroundService
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
