@@ -26,7 +26,7 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonito
             HostString host;
             try
             {
-                servers = serverInfoProvider.GetAll();
+                servers = serverInfoProvider.GetAllServerInfo();
                 host = (await GetCurrentHostAddresses()).First();
             }
             catch (Exception ex)

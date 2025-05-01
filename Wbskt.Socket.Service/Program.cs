@@ -13,6 +13,9 @@ public static class Program
 
     public static async Task Main(string[] args)
     {
+        Environment.SetEnvironmentVariable(Constants.LoggingConstants.LogPath, ProgramDataPath);
+        Environment.SetEnvironmentVariable(nameof(Constants.ServerType), Constants.ServerType.SocketServer);
+        
         var builder = WebApplication.CreateBuilder(args);
 
         // Detect if we are running as a service
@@ -22,7 +25,6 @@ public static class Program
             builder.Host.UseWindowsService();
         }
 
-        Environment.SetEnvironmentVariable("LogPath", ProgramDataPath);
         if (!Directory.Exists(ProgramDataPath))
         {
             Directory.CreateDirectory(ProgramDataPath);

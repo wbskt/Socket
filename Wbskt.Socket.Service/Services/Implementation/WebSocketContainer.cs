@@ -73,7 +73,7 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
 
     public void SendMessage(Guid publisherId, string message)
     {
-        var clientIds = channelsProvider.GetChannelPublisherId(publisherId)
+        var clientIds = channelsProvider.GetChannelByPublisherId(publisherId)
             .SelectMany(c => subscriptionMap.TryGetValue(c.ChannelSubscriberId, out var ids) ? ids : Enumerable.Empty<int>())
             .ToHashSet();
 
@@ -110,15 +110,16 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
 
     public Connection[] GetActiveClients()
     {
-        var map = new List<Connection>();
         var channelIds = subscriptionMap.Keys;
-        var channels = channelIds.Select(channelsProvider.GetChannelSubscriberId).ToList(); // terrible approach (use bulk get)
-        foreach (var clientId in clientMap.Keys)
-        {
-            var cli = clientProvider.GetClientConnectionById(clientId); // terrible approach (use bulk get)
-            map.Add(new Connection(){ ClientName = cli.ClientName, ChannelName = channels.First(c => c.ChannelSubscriberId == cli.ChannelSubscriberId).ChannelName});
-        }
+        var channels = channelIds.Select(channelsProvider.GetChannelBySubscriberId).ToList();
 
-        return map.ToArray();
+        return clientProvider
+            .GetClientConnectionsByIds(clientMap.Keys)
+            .Select(clientId =>
+                new Connection
+                {
+                    ClientName = clientId.ClientName,
+                    ChannelName = channels.First(c => c.ChannelSubscriberId == clientId.ChannelSubscriberId).ChannelName
+                }).ToArray();
     }
 }
