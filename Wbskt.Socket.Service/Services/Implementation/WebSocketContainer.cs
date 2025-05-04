@@ -28,7 +28,7 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
             while (webSocket.State == WebSocketState.Open)
             {
                 var result = await webSocket.ReadAsync(ct).ConfigureAwait(false);
-                if (result.ReciveResult.MessageType == WebSocketMessageType.Close)
+                if (result.ReceiveResult.MessageType == WebSocketMessageType.Close)
                 {
                     logger.LogInformation("client: {client} requested close.", clientId);
                     await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None).ConfigureAwait(false);
