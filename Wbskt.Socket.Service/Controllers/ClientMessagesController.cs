@@ -12,16 +12,6 @@ namespace Wbskt.Socket.Service.Controllers;
 [Authorize(AuthenticationSchemes = Constants.AuthSchemes.CoreServerScheme)]
 public class ClientMessagesController(ILogger<ClientMessagesController> logger, IWebSocketContainer socketContainer) : ControllerBase
 {
-    [HttpGet("")]
-    public IActionResult SendMessage(Guid publisherId)
-    {
-        var payload = new ClientPayload()
-        {
-            Data = "null"
-        };
-        return SendMessage(publisherId, payload);
-    }
-
     [HttpPost("")]
     public IActionResult SendMessage(Guid publisherId, ClientPayload payload)
     {
