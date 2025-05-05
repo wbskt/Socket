@@ -1,4 +1,5 @@
 ﻿using System.Net.WebSockets;
+using System.Text.Json;
 using Wbskt.Common.Contracts;
 using Wbskt.Common.Extensions;
 using Wbskt.Common.Providers;
@@ -71,41 +72,59 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
         }
     }
 
-    public void SendMessage(Guid publisherId, string message)
+    public void SendMessage(Guid publisherId, ClientPayload payload)
     {
-        var clientIds = channelsProvider.GetChannelByPublisherId(publisherId)
-            .SelectMany(c => subscriptionMap.TryGetValue(c.ChannelSubscriberId, out var ids) ? ids : Enumerable.Empty<int>())
-            .ToHashSet();
-
-        if (clientIds.Any())
+        var channels = channelsProvider.GetChannelByPublisherId(publisherId);
+        var payloads = channels.Select(c => new ClientPayload
         {
-            foreach (var clientId in clientIds)
-            {
-                if (clientMap.TryGetValue(clientId, out var webSocket))
-                {
-                    logger.LogDebug("enqueueing send action to processor. Client: {clientId}, Message: {message}", clientId, message);
-                    TaskProcessor.Enqueue(webSocket.WriteAsync(message).ContinueWith(task =>
-                    {
-                        if (task.IsFaulted)
-                        {
-                            logger.LogError(task.Exception, "failed to send message to client: {clientId}", clientId);
-                        }
-                        else
-                        {
-                            logger.LogDebug("message sent to client: {clientId}", clientId);
-                        }
-                    }));
-                }
-                else
-                {
-                    logger.LogWarning("client: {clientId} not found in client map.", clientId);
-                }
-            }
-        }
-        else
+            ChannelSubscriberId = c.ChannelSubscriberId,
+            Data = payload.Data,
+            EnsureDelivery = payload.EnsureDelivery,
+            PayloadId = payload.PayloadId,
+            PublisherId = payload.PublisherId
+        });
+
+        // payload - cli[]
+        var payloadClientIdsArr = payloads.Select<ClientPayload, (ClientPayload Payload, HashSet<int> ClientIds)>(cp => (cp, subscriptionMap[cp.ChannelSubscriberId])).ToArray();
+
+        if (payloadClientIdsArr.Length == 0)
         {
             logger.LogInformation("no clients subscribed for the publisher: {publisher}", publisherId);
         }
+        else
+        {
+            foreach (var cpcids in payloadClientIdsArr)
+            {
+                var jsonPayload = JsonSerializer.Serialize(cpcids.Payload);
+                foreach (var clientId in cpcids.ClientIds)
+                {
+                    if (clientMap.TryGetValue(clientId, out var webSocket))
+                    {
+                        EnqueueTask(jsonPayload, clientId, webSocket);
+                    }
+                    else
+                    {
+                        logger.LogWarning("client: {clientId} not found in client map.", clientId);
+                    }
+                }
+            }
+        }
+    }
+
+    private void EnqueueTask(string jsonPayload, int clientId, WebSocket webSocket)
+    {
+        logger.LogDebug("enqueueing send action to processor. Client: {clientId}, Message: {message}", clientId, jsonPayload);
+        TaskProcessor.Enqueue(webSocket.WriteAsync(jsonPayload).ContinueWith(task =>
+        {
+            if (task.IsFaulted)
+            {
+                logger.LogError(task.Exception, "failed to send message to client: {clientId}", clientId);
+            }
+            else
+            {
+                logger.LogDebug("message sent to client: {clientId}", clientId);
+            }
+        }));
     }
 
     public Connection[] GetActiveClients()

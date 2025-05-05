@@ -15,9 +15,7 @@ public class ClientMessagesController(ILogger<ClientMessagesController> logger, 
     [HttpPost("")]
     public IActionResult SendMessage(Guid publisherId, ClientPayload payload)
     {
-        var json = JsonSerializer.Serialize(payload);
-        logger.LogDebug("dispatching message: {payload} to {publisherId}", json, publisherId);
-        socketContainer.SendMessage(publisherId, json);
+        socketContainer.SendMessage(publisherId, payload);
         return Ok();
     }
 }
