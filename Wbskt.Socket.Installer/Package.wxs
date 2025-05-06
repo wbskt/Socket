@@ -2,7 +2,7 @@
 
   <Package Name="Wbskt Socket Service"
            Manufacturer="Wbskt"
-           Version="1.0.0.0"
+           Version="2.0.0.0"
            UpgradeCode="daa39aa8-0199-434b-b27a-8ab842a1d312">
 
     <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
