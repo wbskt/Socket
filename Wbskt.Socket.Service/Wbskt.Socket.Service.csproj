@@ -6,6 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <DefaultItemExcludes>$(DefaultItemExcludes);publish**</DefaultItemExcludes>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+	<SignAssembly>true</SignAssembly>
+	<AssemblyOriginatorKeyFile>Wbskt.Socket.Service.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
 	<ItemGroup>
