@@ -25,11 +25,11 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
 
             while (webSocket.State == WebSocketState.Open)
             {
-                var result = await webSocket.ReadAsync(ct).ConfigureAwait(false);
-                if (result.ReceiveResult.MessageType == WebSocketMessageType.Close)
+                var result = await webSocket.ReadAsync(ct);
+                if (result.ReceiveResult.MessageType == WebSocketMessageType.Close && webSocket.State is WebSocketState.Open or WebSocketState.CloseReceived or WebSocketState.CloseSent)
                 {
                     logger.LogInformation("client: {client} requested close.", clientId);
-                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None).ConfigureAwait(false);
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                     break;
                 }
             }
