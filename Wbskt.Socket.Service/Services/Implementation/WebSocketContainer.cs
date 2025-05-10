@@ -9,19 +9,15 @@ namespace Wbskt.Socket.Service.Services.Implementation;
 
 public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsProvider channelsProvider, IClientProvider clientProvider) : IWebSocketContainer
 {
-    private readonly ConcurrentDictionary<Guid, HashSet<int>> subscriptionMap = new();
+    private readonly ConcurrentDictionary<Guid, ConcurrentDictionary<int, byte>> subscriptionMap = new();
     private readonly ConcurrentDictionary<int, WebSocket> clientMap = new();
 
     public async Task Listen(WebSocket webSocket, Guid channelSubscriberId, int clientId, CancellationToken ct)
     {
         clientMap[clientId] = webSocket;
 
-        if (!subscriptionMap.TryGetValue(channelSubscriberId, out var clientIds))
-        {
-            clientIds = new HashSet<int>();
-            subscriptionMap[channelSubscriberId] = clientIds;
-        }
-        clientIds.Add(clientId);
+        var clientIds = subscriptionMap.GetOrAdd(channelSubscriberId, _ => new ConcurrentDictionary<int, byte>());
+        clientIds.TryAdd(clientId, 0);
 
         try
         {
@@ -65,10 +61,10 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
         clientMap.Remove(clientId, out _);
         if (subscriptionMap.TryGetValue(channelSubscriberId, out var clientIds))
         {
-            clientIds.Remove(clientId);
-            if (clientIds.Count == 0)
+            clientIds.TryRemove(clientId, out _);
+            if (clientIds.IsEmpty)
             {
-                subscriptionMap.Remove(channelSubscriberId, out _);
+                subscriptionMap.TryRemove(channelSubscriberId, out _);
             }
         }
     }
@@ -86,7 +82,7 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
         });
 
         // payload - cli[]
-        var payloadClientIdsArr = payloads.Select<ClientPayload, (ClientPayload Payload, HashSet<int> ClientIds)>(cp => (cp, subscriptionMap[cp.ChannelSubscriberId])).ToArray();
+        var payloadClientIdsArr = payloads.Select<ClientPayload, (ClientPayload Payload, ConcurrentDictionary<int, byte> ClientIds)>(cp => (cp, subscriptionMap[cp.ChannelSubscriberId])).ToArray();
 
         if (payloadClientIdsArr.Length == 0)
         {
@@ -97,7 +93,7 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
             foreach (var cpcids in payloadClientIdsArr)
             {
                 var jsonPayload = JsonSerializer.Serialize(cpcids.Payload);
-                foreach (var clientId in cpcids.ClientIds)
+                foreach (var clientId in cpcids.ClientIds.Keys)
                 {
                     if (clientMap.TryGetValue(clientId, out var webSocket))
                     {
