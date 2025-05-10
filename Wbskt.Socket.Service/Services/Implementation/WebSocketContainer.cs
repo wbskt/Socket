@@ -1,4 +1,5 @@
-﻿using System.Net.WebSockets;
+﻿using System.Collections.Concurrent;
+using System.Net.WebSockets;
 using System.Text.Json;
 using Wbskt.Common.Contracts;
 using Wbskt.Common.Extensions;
@@ -8,8 +9,8 @@ namespace Wbskt.Socket.Service.Services.Implementation;
 
 public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsProvider channelsProvider, IClientProvider clientProvider) : IWebSocketContainer
 {
-    private readonly Dictionary<Guid, HashSet<int>> subscriptionMap = new();
-    private readonly Dictionary<int, WebSocket> clientMap = new();
+    private readonly ConcurrentDictionary<Guid, HashSet<int>> subscriptionMap = new();
+    private readonly ConcurrentDictionary<int, WebSocket> clientMap = new();
 
     public async Task Listen(WebSocket webSocket, Guid channelSubscriberId, int clientId, CancellationToken ct)
     {
@@ -61,13 +62,13 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
         }
 
         logger.LogInformation("connection to client: {client} disposed", clientId);
-        clientMap.Remove(clientId);
+        clientMap.Remove(clientId, out _);
         if (subscriptionMap.TryGetValue(channelSubscriberId, out var clientIds))
         {
             clientIds.Remove(clientId);
             if (clientIds.Count == 0)
             {
-                subscriptionMap.Remove(channelSubscriberId);
+                subscriptionMap.Remove(channelSubscriberId, out _);
             }
         }
     }
