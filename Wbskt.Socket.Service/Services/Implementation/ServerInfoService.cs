@@ -2,15 +2,18 @@
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.Options;
+using Wbskt.Common;
 using Wbskt.Common.Contracts;
+using Wbskt.Common.Extensions;
 using Wbskt.Common.Providers;
 
 namespace Wbskt.Socket.Service.Services.Implementation;
 
-public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonitor<SocketServerConfiguration> optionsMonitor, IServer server, IServerInfoProvider serverInfoProvider, IHostEnvironment environment) : IServerInfoService
+public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonitor<SocketServerConfiguration> optionsMonitor, IServer server, IServerInfoProvider serverInfoProvider, IHostEnvironment environment, CoreServerConnection coreServerConnection) : IServerInfoService
 {
     private static bool _registered;
-    private static ServerInfo _currentServerInfo = new();
+    private static ServerInfo _currentServerInfo = new() { Type = Constants.ServerType.SocketServer };
+    private static ServerInfo _wbsktServerInfo = new() { Type = Constants.ServerType.CoreServer };
     private static int _serverId;
 
     public int GetCurrentServerId()
@@ -18,16 +21,24 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonito
         return _serverId;
     }
 
-    public async Task RegisterServer()
+    public async Task RegisterServer(CancellationToken ct)
+    {
+        await RegisterServerInternal();
+        await ConnectToCoreServer(ct);
+    }
+
+    private async Task RegisterServerInternal()
     {
         while (_registered == false)
         {
-            IReadOnlyCollection<ServerInfo> servers;
+            SetWbsktServerInfo();
+            IReadOnlyCollection<ServerInfo> socketServerInfo;
             HostString host;
             try
             {
-                servers = serverInfoProvider.GetAllServerInfo();
-                host = (await GetCurrentHostAddresses()).First();
+                socketServerInfo = serverInfoProvider.GetAllSocketServerInfo();
+                var addresses = server.Features.Get<IServerAddressesFeature>()?.Addresses;
+                host = (await AddressUtils.GetCurrentHostAddresses(addresses, environment.IsProduction())).First();
             }
             catch (Exception ex)
             {
@@ -39,10 +50,10 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonito
             _currentServerInfo.Address = host;
 
             logger.LogDebug("current socket-server address is {address}", _currentServerInfo.Address);
-            if (servers.Any(s => s.Address == host))
+            if (socketServerInfo.Any(s => s.Address == host))
             {
                 //replace serverInfo with the one from the db
-                _currentServerInfo = servers.First(s => s.Address == host);
+                _currentServerInfo = socketServerInfo.First(s => s.Address == host);
                 _serverId = _currentServerInfo.ServerId;
                 // active status will be updated by the core.server
                 CheckAndUpdatePublicDomainAddressFromDb(_currentServerInfo);
@@ -62,6 +73,32 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonito
             }
         }
         optionsMonitor.OnChange(CheckAndUpdatePublicDomainAddressFromAppSettings);
+    }
+
+    private async Task ConnectToCoreServer(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                await coreServerConnection.Connect(_wbsktServerInfo, _currentServerInfo, ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError("unexpected error occured while maintaining connection to core server: {error}", ex.Message);
+            }
+
+            if (!ct.IsCancellationRequested)
+            {
+                await Task.Delay(5 * 1000, ct);
+            }
+        }
+    }
+
+    private void SetWbsktServerInfo()
+    {
+        _wbsktServerInfo.Address = new HostString(optionsMonitor.CurrentValue.WbsktServerAddress);
+        _wbsktServerInfo = serverInfoProvider.GetAllCoreServerInfo().FirstOrDefault() ?? _wbsktServerInfo;
     }
 
     private void CheckAndUpdatePublicDomainAddressFromAppSettings(SocketServerConfiguration configuration)
@@ -107,50 +144,5 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonito
 
         logger.LogWarning("mismatch between domain name and current ipaddress (updating dbo.server)");
         serverInfoProvider.UpdatePublicDomainName(serverInfo.ServerId, string.Empty);
-    }
-
-    private async Task<HostString[]> GetCurrentHostAddresses()
-    {
-        var host = await GetIpAddress();
-        var addresses = server.Features.Get<IServerAddressesFeature>()!.Addresses;
-        if (addresses.Count == 0)
-        {
-            throw new InvalidOperationException("server address feature is not initialized yet");
-        }
-
-        var ports = addresses.Select(a => new Uri(a).Port).ToArray();
-
-        var hostStrings = new HostString[ports.Length];
-
-        for (var i = 0; i < ports.Length; i++)
-        {
-            hostStrings[i] = new HostString(host, ports[i]);
-        }
-
-        return hostStrings;
-    }
-
-    private async Task<string> GetIpAddress()
-    {
-        if (environment.IsProduction())
-        {
-            var client = new HttpClient
-            {
-                BaseAddress = new Uri("https://ifconfig.me"),
-            };
-
-            var result = await client.GetAsync("ip");
-            if (result.IsSuccessStatusCode)
-            {
-                return await result.Content.ReadAsStringAsync();
-            }
-
-            return string.Empty;
-        }
-
-        var hostName = Dns.GetHostName();
-        var hostEntry = await Dns.GetHostEntryAsync(hostName);
-        var host = hostEntry.AddressList[1].MapToIPv4().ToString();
-        return host;
     }
 }

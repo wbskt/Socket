@@ -16,7 +16,7 @@ public static class Program
     public static async Task Main(string[] args)
     {
         Environment.SetEnvironmentVariable(Constants.LoggingConstants.LogPath, ProgramDataPath);
-        Environment.SetEnvironmentVariable(nameof(Constants.ServerType), Constants.ServerType.SocketServer);
+        Environment.SetEnvironmentVariable(nameof(Constants.ServerType), Constants.ServerType.SocketServer.ToString());
 
         var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +42,7 @@ public static class Program
         // Add services to the container.
         builder.Services.ConfigureCommonServices();
 
+        builder.Services.AddSingleton<CoreServerConnection>();
         builder.Services.AddSingleton<IClientService, ClientService>();
         builder.Services.AddSingleton<IWebSocketContainer, WebSocketContainer>();
         builder.Services.AddSingleton<IServerInfoService, ServerInfoService>();
@@ -76,7 +77,7 @@ public static class Program
         SqlDependency.Start(connectionString);
 
         // register server
-        app.Lifetime.ApplicationStarted.Register(() => app.Services.GetRequiredService<IServerInfoService>().RegisterServer().Wait());
+        app.Lifetime.ApplicationStarted.Register(() => app.Services.GetRequiredService<IServerInfoService>().RegisterServer(Cts.Token).Wait());
 
         app.Lifetime.ApplicationStopping.Register(() =>
         {

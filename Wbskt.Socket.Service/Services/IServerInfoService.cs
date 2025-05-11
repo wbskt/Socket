@@ -2,7 +2,7 @@
 
 public interface IServerInfoService
 {
-    Task RegisterServer();
+    Task RegisterServer(CancellationToken ct);
 
     int GetCurrentServerId();
 }
