@@ -11,7 +11,6 @@ namespace Wbskt.Socket.Service.Services;
 
 public class CoreServerConnection(ILogger<CoreServerConnection> logger, IConfiguration configuration)
 {
-    private ClientWebSocket ws;
     private static ServerInfo _currentServerInfo = new() { Type = Constants.ServerType.SocketServer };
 
     public async Task Connect(ServerInfo wbsktServerInfo, ServerInfo currentServerInfo, CancellationToken cancellationToken)

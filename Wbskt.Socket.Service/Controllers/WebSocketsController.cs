@@ -16,7 +16,7 @@ public class WebSocketsController(ILogger<WebSocketsController> logger, IWebSock
     {
         var tid = User.GetTokenId();
         var csid = User.GetChannelSubscriberId();
-        var cuid = User.GetClientId();
+        var cid = User.GetClientId();
         var sid = User.GetSocketServerId();
         var cname = User.GetClientName();
 
@@ -27,25 +27,25 @@ public class WebSocketsController(ILogger<WebSocketsController> logger, IWebSock
         }
         else if (HttpContext.WebSockets.IsWebSocketRequest)
         {
-            var clientId = clientService.GetClientIdByUniqueId(cuid);
-            if (clientService.VerifyAndInvalidateToken(clientId, tid))
+            // var clientId = clientService.GetClientIdByUniqueId(cuid);
+            // if (clientService.VerifyAndInvalidateToken(clientId, tid))
             {
                 using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
 
                 try
                 {
-                    await webSocketContainer.Listen(webSocket, csid, clientId, Program.Cts.Token);
+                    await webSocketContainer.Listen(webSocket, csid, cid, Program.Cts.Token);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, clientId , ex.Message);
+                    logger.LogError(ex, "unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, cid , ex.Message);
                 }
             }
-            else
-            {
-                HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
-                logger.LogWarning("the provided token is expired or used");
-            }
+            // else
+            // {
+                // HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+                // logger.LogWarning("the provided token is expired or used");
+            // }
         }
         else
         {

@@ -38,7 +38,7 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "connection errored to client: {client}", clientId);
+            logger.LogError("connection errored to client: {client} with message: {error}", clientId, ex.Message);
         }
         finally
         {
@@ -69,9 +69,9 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
         }
     }
 
-    public void SendMessage(Guid publisherId, ClientPayload payload)
+    public void SendMessage(ClientPayload payload)
     {
-        var channels = channelsProvider.GetChannelByPublisherId(publisherId);
+        var channels = channelsProvider.GetChannelByPublisherId(payload.PublisherId);
         var payloads = channels.Select(c => new ClientPayload
         {
             ChannelSubscriberId = c.ChannelSubscriberId,
@@ -86,7 +86,7 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
 
         if (payloadClientIdsArr.Length == 0)
         {
-            logger.LogInformation("no clients subscribed for the publisher: {publisher}", publisherId);
+            logger.LogInformation("no clients subscribed for the publisher: {publisher}", payload.PublisherId);
         }
         else
         {

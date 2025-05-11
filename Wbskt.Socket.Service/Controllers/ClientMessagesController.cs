@@ -7,14 +7,14 @@ using Wbskt.Socket.Service.Services;
 namespace Wbskt.Socket.Service.Controllers;
 
 [ApiController]
-[Route("dispatch/{publisherId:guid}")]
+[Route("dispatch/")]
 [Authorize(AuthenticationSchemes = Constants.AuthSchemes.CoreServerScheme)]
 public class ClientMessagesController(ILogger<ClientMessagesController> logger, IWebSocketContainer socketContainer) : ControllerBase
 {
     [HttpPost("")]
-    public IActionResult SendMessage(Guid publisherId, ClientPayload payload)
+    public IActionResult SendMessage(ClientPayload payload)
     {
-        socketContainer.SendMessage(publisherId, payload);
+        socketContainer.SendMessage(payload);
         return Ok();
     }
 }

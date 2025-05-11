@@ -7,7 +7,7 @@ public interface IWebSocketContainer
 {
     Task Listen(WebSocket webSocket, Guid channelSubscriberId, int clientId, CancellationToken ct);
 
-    void SendMessage(Guid publisherId, ClientPayload payload);
+    void SendMessage(ClientPayload payload);
 
     Connection[] GetActiveClients();
 }
