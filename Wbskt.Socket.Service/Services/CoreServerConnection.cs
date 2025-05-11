@@ -27,7 +27,7 @@ public class CoreServerConnection(ILogger<CoreServerConnection> logger, IConfigu
 
         await webSocket.WriteAsync(currentServerInfo.GetAddressWithFallback(), CancellationToken.None);
 
-        cancellationToken.Register(() => CloseClientConnection(logger, webSocket));
+        cancellationToken.Register(() => CloseClientConnection(logger, webSocket).Wait(CancellationToken.None));
         while (!cancellationToken.IsCancellationRequested && webSocket.State == WebSocketState.Open)
         {
             var (receiveResult, message) = await webSocket.ReadAsync(CancellationToken.None);
@@ -61,12 +61,12 @@ public class CoreServerConnection(ILogger<CoreServerConnection> logger, IConfigu
         return tokenHandler.CreateToken(tokenDescriptor);
     }
 
-    private static void CloseClientConnection(ILogger logger, ClientWebSocket ws)
+    private static async Task CloseClientConnection(ILogger logger, ClientWebSocket ws)
     {
         if (ws.State is WebSocketState.Open or WebSocketState.CloseReceived or WebSocketState.CloseSent)
         {
             logger.LogInformation("closing connection ({closeStatus})", "Closing connection (client initiated)");
-            ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing connection (client initiated)", CancellationToken.None);
+            await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing connection (client initiated)", CancellationToken.None);
         }
     }
 }
