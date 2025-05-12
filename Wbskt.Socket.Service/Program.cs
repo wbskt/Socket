@@ -10,15 +10,18 @@ namespace Wbskt.Socket.Service;
 
 public static class Program
 {
-    public static readonly CancellationTokenSource Cts = new();
     private static readonly string ProgramDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Wbskt");
 
     public static async Task Main(string[] args)
     {
+        var builder = WebApplication.CreateBuilder(args);
+
+        // Register CancellationTokenSource as a singleton
+        var cts = new CancellationTokenSource();
+        builder.Services.AddSingleton("MainCancellationToken", cts.Token);
+
         Environment.SetEnvironmentVariable(Constants.LoggingConstants.LogPath, ProgramDataPath);
         Environment.SetEnvironmentVariable(nameof(Constants.ServerType), Constants.ServerType.SocketServer.ToString());
-
-        var builder = WebApplication.CreateBuilder(args);
 
         // Detect if we are running as a service
         var isWindowsService = !(Environment.UserInteractive || args.Contains("--console"));
@@ -77,14 +80,14 @@ public static class Program
         SqlDependency.Start(connectionString);
 
         // register server
-        app.Lifetime.ApplicationStarted.Register(() => app.Services.GetRequiredService<IServerInfoService>().RegisterServer(Cts.Token).Wait());
+        app.Lifetime.ApplicationStarted.Register(() => app.Services.GetRequiredService<IServerInfoService>().RegisterServer(app.Services.GetRequiredService<CancellationToken>()).Wait());
 
         app.Lifetime.ApplicationStopping.Register(() =>
         {
-            Cts.Cancel();
+            cts.Cancel();
             SqlDependency.Stop(connectionString);
         });
 
-        await app.RunAsync(Cts.Token);
+        await app.RunAsync(cts.Token);
     }
 }

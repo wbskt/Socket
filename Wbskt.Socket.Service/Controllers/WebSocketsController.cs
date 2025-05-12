@@ -9,8 +9,15 @@ namespace Wbskt.Socket.Service.Controllers;
 [Route("ws")]
 [ApiController]
 [Authorize(AuthenticationSchemes = Constants.AuthSchemes.ClientScheme)]
-public class WebSocketsController(ILogger<WebSocketsController> logger, IWebSocketContainer webSocketContainer, IClientService clientService, IServerInfoService serverInfo) : ControllerBase
+public class WebSocketsController(
+    ILogger<WebSocketsController> logger,
+    IWebSocketContainer webSocketContainer,
+    IClientService clientService,
+    IServerInfoService serverInfo,
+    CancellationToken cancellationToken) : ControllerBase
 {
+    private readonly CancellationToken _cancellationToken = cancellationToken;
+
     [HttpGet]
     public async Task ConnectAsync()
     {
@@ -34,11 +41,11 @@ public class WebSocketsController(ILogger<WebSocketsController> logger, IWebSock
 
                 try
                 {
-                    await webSocketContainer.Listen(webSocket, csid, cid, Program.Cts.Token);
+                    await webSocketContainer.Listen(webSocket, csid, cid, _cancellationToken);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, cid , ex.Message);
+                    logger.LogError(ex, "unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, cid, ex.Message);
                 }
             }
             // else
