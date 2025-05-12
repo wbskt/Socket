@@ -3,6 +3,7 @@ using Serilog;
 using Wbskt.Common;
 using Wbskt.Common.Extensions;
 using Wbskt.Common.Providers;
+using Wbskt.Common.Services;
 using Wbskt.Socket.Service.Services;
 using Wbskt.Socket.Service.Services.Implementation;
 
@@ -15,10 +16,6 @@ public static class Program
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-
-        // Register CancellationTokenSource as a singleton
-        var cts = new CancellationTokenSource();
-        builder.Services.AddSingleton("MainCancellationToken", cts.Token);
 
         Environment.SetEnvironmentVariable(Constants.LoggingConstants.LogPath, ProgramDataPath);
         Environment.SetEnvironmentVariable(nameof(Constants.ServerType), Constants.ServerType.SocketServer.ToString());
@@ -45,6 +42,7 @@ public static class Program
         // Add services to the container.
         builder.Services.ConfigureCommonServices();
 
+        builder.Services.AddSingleton<ICancellationService, CancellationService>();
         builder.Services.AddSingleton<CoreServerConnection>();
         builder.Services.AddSingleton<IClientService, ClientService>();
         builder.Services.AddSingleton<IWebSocketContainer, WebSocketContainer>();
@@ -77,17 +75,18 @@ public static class Program
         app.MapControllers();
 
         var connectionString = app.Services.GetRequiredService<IConnectionStringProvider>().ConnectionString;
+        var cancellationService = app.Services.GetRequiredService<ICancellationService>();
         SqlDependency.Start(connectionString);
 
         // register server
-        app.Lifetime.ApplicationStarted.Register(() => app.Services.GetRequiredService<IServerInfoService>().RegisterServer(app.Services.GetRequiredService<CancellationToken>()).Wait());
+        app.Lifetime.ApplicationStarted.Register(() => app.Services.GetRequiredService<IServerInfoService>().RegisterServer().Wait());
 
         app.Lifetime.ApplicationStopping.Register(() =>
         {
-            cts.Cancel();
+            cancellationService.Cancel().Wait();
             SqlDependency.Stop(connectionString);
         });
 
-        await app.RunAsync(cts.Token);
+        await app.RunAsync(cancellationService.GetToken());
     }
 }

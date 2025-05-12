@@ -6,10 +6,11 @@ using Wbskt.Common;
 using Wbskt.Common.Contracts;
 using Wbskt.Common.Extensions;
 using Wbskt.Common.Providers;
+using Wbskt.Common.Services;
 
 namespace Wbskt.Socket.Service.Services.Implementation;
 
-public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonitor<SocketServerConfiguration> optionsMonitor, IServer server, IServerInfoProvider serverInfoProvider, IHostEnvironment environment, CoreServerConnection coreServerConnection) : IServerInfoService
+public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonitor<SocketServerConfiguration> optionsMonitor, IServer server, IServerInfoProvider serverInfoProvider, IHostEnvironment environment, CoreServerConnection coreServerConnection, ICancellationService cancellationService) : IServerInfoService
 {
     private static bool _registered;
     private static ServerInfo _currentServerInfo = new() { Type = Constants.ServerType.SocketServer };
@@ -21,10 +22,10 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonito
         return _serverId;
     }
 
-    public async Task RegisterServer(CancellationToken ct)
+    public async Task RegisterServer()
     {
         await RegisterServerInternal();
-        await ConnectToCoreServer(ct);
+        await ConnectToCoreServer();
     }
 
     private async Task RegisterServerInternal()
@@ -75,22 +76,22 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonito
         optionsMonitor.OnChange(CheckAndUpdatePublicDomainAddressFromAppSettings);
     }
 
-    private async Task ConnectToCoreServer(CancellationToken ct)
+    private async Task ConnectToCoreServer()
     {
-        while (!ct.IsCancellationRequested)
+        while (!cancellationService.GetToken().IsCancellationRequested)
         {
             try
             {
-                await coreServerConnection.Connect(_wbsktServerInfo, _currentServerInfo, ct);
+                await coreServerConnection.Connect(_wbsktServerInfo, _currentServerInfo);
             }
             catch (Exception ex)
             {
                 logger.LogError("unexpected error occured while maintaining connection to core server: {error}", ex.Message);
             }
 
-            if (!ct.IsCancellationRequested)
+            if (!cancellationService.GetToken().IsCancellationRequested)
             {
-                await Task.Delay(5 * 1000, ct);
+                await Task.Delay(5 * 1000, cancellationService.GetToken());
             }
         }
     }

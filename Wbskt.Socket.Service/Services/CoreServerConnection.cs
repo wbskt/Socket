@@ -6,14 +6,15 @@ using Microsoft.IdentityModel.Tokens;
 using Wbskt.Common;
 using Wbskt.Common.Contracts;
 using Wbskt.Common.Extensions;
+using Wbskt.Common.Services;
 
 namespace Wbskt.Socket.Service.Services;
 
-public class CoreServerConnection(ILogger<CoreServerConnection> logger, IConfiguration configuration)
+public class CoreServerConnection(ILogger<CoreServerConnection> logger, IConfiguration configuration, ICancellationService cancellationService)
 {
     private static ServerInfo _currentServerInfo = new() { Type = Constants.ServerType.SocketServer };
 
-    public async Task Connect(ServerInfo wbsktServerInfo, ServerInfo currentServerInfo, CancellationToken cancellationToken)
+    public async Task Connect(ServerInfo wbsktServerInfo, ServerInfo currentServerInfo)
     {
         _currentServerInfo = currentServerInfo;
         var token = CreateCoreServerToken();
@@ -26,8 +27,8 @@ public class CoreServerConnection(ILogger<CoreServerConnection> logger, IConfigu
 
         await webSocket.WriteAsync(currentServerInfo.GetAddressWithFallback(), CancellationToken.None);
 
-        cancellationToken.Register(() => CloseClientConnection(logger, webSocket).Wait(CancellationToken.None));
-        while (!cancellationToken.IsCancellationRequested && webSocket.State == WebSocketState.Open)
+        cancellationService.InvokeOnShutdown(() => CloseClientConnection(logger, webSocket).Wait(CancellationToken.None));
+        while (!cancellationService.GetToken().IsCancellationRequested && webSocket.State == WebSocketState.Open)
         {
             var (receiveResult, message) = await webSocket.ReadAsync(CancellationToken.None);
 
