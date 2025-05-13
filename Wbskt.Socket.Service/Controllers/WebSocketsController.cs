@@ -12,16 +12,11 @@ namespace Wbskt.Socket.Service.Controllers;
 public class WebSocketsController(
     ILogger<WebSocketsController> logger,
     IWebSocketContainer webSocketContainer,
-    IClientService clientService,
-    IServerInfoService serverInfo,
-    CancellationToken cancellationToken) : ControllerBase
+    IServerInfoService serverInfo) : ControllerBase
 {
-    private readonly CancellationToken _cancellationToken = cancellationToken;
-
     [HttpGet]
     public async Task ConnectAsync()
     {
-        var tid = User.GetTokenId();
         var csid = User.GetChannelSubscriberId();
         var cid = User.GetClientId();
         var sid = User.GetSocketServerId();
@@ -32,27 +27,25 @@ public class WebSocketsController(
             logger.LogWarning("client is not authorized to make connect to this server({serverId})", cname);
             HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
         }
+        else if (webSocketContainer.ConnectionExists(cid))
+        {
+            logger.LogWarning("client connection already exists with: {cname}", cname);
+            logger.LogInformation("adding existing connection to the given list of channles");
+            webSocketContainer.AddChannelsForClient([csid], cid);
+            HttpContext.Response.StatusCode = StatusCodes.Status302Found;
+        }
         else if (HttpContext.WebSockets.IsWebSocketRequest)
         {
-            // var clientId = clientService.GetClientIdByUniqueId(cuid);
-            // if (clientService.VerifyAndInvalidateToken(clientId, tid))
-            {
-                using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+            using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
 
-                try
-                {
-                    await webSocketContainer.Listen(webSocket, csid, cid, _cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, cid, ex.Message);
-                }
+            try
+            {
+                await webSocketContainer.Listen(webSocket, [csid], cid);
             }
-            // else
-            // {
-                // HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
-                // logger.LogWarning("the provided token is expired or used");
-            // }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "unexpected error while keeping the connection:{clientName}-{clientId} : {error}", cname, cid, ex.Message);
+            }
         }
         else
         {

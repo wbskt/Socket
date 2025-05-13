@@ -5,9 +5,11 @@ namespace Wbskt.Socket.Service.Services;
 
 public interface IWebSocketContainer
 {
-    Task Listen(WebSocket webSocket, Guid channelSubscriberId, int clientId, CancellationToken ct);
+    Task Listen(WebSocket webSocket, Guid[] channelSubscriberIds, int clientId);
 
     void SendMessage(ClientPayload payload);
 
-    Connection[] GetActiveClients();
+    bool ConnectionExists(int clientId);
+
+    void AddChannelsForClient(Guid[] channelSubscriberIds, int clientId);
 }

@@ -4,28 +4,53 @@ using System.Text.Json;
 using Wbskt.Common.Contracts;
 using Wbskt.Common.Extensions;
 using Wbskt.Common.Providers;
+using Wbskt.Common.Services;
 
 namespace Wbskt.Socket.Service.Services.Implementation;
 
-public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsProvider channelsProvider, IClientProvider clientProvider) : IWebSocketContainer
+public class WebSocketContainer(ILogger<WebSocketContainer> logger, ICachedChannelsProvider channelsProvider, ICancellationService cancellationService) : IWebSocketContainer
 {
-    private readonly ConcurrentDictionary<Guid, ConcurrentDictionary<int, byte>> subscriptionMap = new();
+    /// <summary>
+    /// Channel(sub) to client map. given a channel sub id, it will find all the client ids that subscribes to it.
+    /// </summary>
+    private readonly ConcurrentDictionary<Guid, ConcurrentDictionary<int, bool>> channelClientsMap = new();
+
+    /// <summary>
+    /// Client to Socket map each client will have only one socket connected. even if the client is subscribed to multiple channels
+    /// </summary>
     private readonly ConcurrentDictionary<int, WebSocket> clientMap = new();
 
-    public async Task Listen(WebSocket webSocket, Guid channelSubscriberId, int clientId, CancellationToken ct)
+    public bool ConnectionExists(int clientId)
+    {
+        return clientMap.ContainsKey(clientId);
+    }
+
+    public void AddChannelsForClient(Guid[] channelSubscriberIds, int clientId)
+    {
+        foreach (var channelSubscriberId in channelSubscriberIds)
+        {
+            var clientIds = channelClientsMap.GetOrAdd(channelSubscriberId, _ => new ConcurrentDictionary<int, bool>());
+            clientIds.TryAdd(clientId, true);
+        }
+    }
+
+    public async Task Listen(WebSocket webSocket, Guid[] channelSubscriberIds, int clientId)
     {
         clientMap[clientId] = webSocket;
 
-        var clientIds = subscriptionMap.GetOrAdd(channelSubscriberId, _ => new ConcurrentDictionary<int, byte>());
-        clientIds.TryAdd(clientId, 0);
+        foreach (var channelSubscriberId in channelSubscriberIds)
+        {
+            var clientIds = channelClientsMap.GetOrAdd(channelSubscriberId, _ => new ConcurrentDictionary<int, bool>());
+            clientIds.TryAdd(clientId, true);
+        }
 
         try
         {
             logger.LogInformation("connection established to client: {client}", clientId);
-
-            while (webSocket.State == WebSocketState.Open)
+            cancellationService.InvokeOnShutdown(() => CloseClientConnection(webSocket).Wait(CancellationToken.None));
+            while (!cancellationService.GetToken().IsCancellationRequested && webSocket.State == WebSocketState.Open)
             {
-                var result = await webSocket.ReadAsync(ct);
+                var result = await webSocket.ReadAsync();
                 if (result.ReceiveResult.MessageType == WebSocketMessageType.Close && webSocket.State is WebSocketState.Open or WebSocketState.CloseReceived or WebSocketState.CloseSent)
                 {
                     logger.LogInformation("client: {client} requested close.", clientId);
@@ -42,11 +67,20 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
         }
         finally
         {
-            DisposeWebSocket(webSocket, clientId, channelSubscriberId);
+            DisposeWebSocket(webSocket, clientId);
         }
     }
 
-    private void DisposeWebSocket(WebSocket webSocket, int clientId, Guid channelSubscriberId)
+    private async Task CloseClientConnection(WebSocket ws)
+    {
+        if (ws.State == WebSocketState.Open || ws.State == WebSocketState.CloseReceived || ws.State == WebSocketState.CloseSent)
+        {
+            logger.LogInformation("Closing connection ({closeStatus})", "Closing connection (server initiated)");
+            await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing connection (server initiated)", CancellationToken.None);
+        }
+    }
+
+    private void DisposeWebSocket(WebSocket webSocket, int clientId)
     {
         try
         {
@@ -59,19 +93,15 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
 
         logger.LogInformation("connection to client: {client} disposed", clientId);
         clientMap.Remove(clientId, out _);
-        if (subscriptionMap.TryGetValue(channelSubscriberId, out var clientIds))
+        foreach (var clientIds in channelClientsMap.Values)
         {
             clientIds.TryRemove(clientId, out _);
-            if (clientIds.IsEmpty)
-            {
-                subscriptionMap.TryRemove(channelSubscriberId, out _);
-            }
         }
     }
 
     public void SendMessage(ClientPayload payload)
     {
-        var channels = channelsProvider.GetChannelByPublisherId(payload.PublisherId);
+        var channels = channelsProvider.GetAllByChannelPublisherId(payload.PublisherId);
         var payloads = channels.Select(c => new ClientPayload
         {
             ChannelSubscriberId = c.ChannelSubscriberId,
@@ -82,7 +112,7 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
         });
 
         // payload - cli[]
-        var payloadClientIdsArr = payloads.Select<ClientPayload, (ClientPayload Payload, ConcurrentDictionary<int, byte> ClientIds)>(cp => (cp, subscriptionMap[cp.ChannelSubscriberId])).ToArray();
+        var payloadClientIdsArr = payloads.Select<ClientPayload, (ClientPayload Payload, ConcurrentDictionary<int, bool > ClientIds)>(cp => (cp, channelClientsMap[cp.ChannelSubscriberId])).ToArray();
 
         if (payloadClientIdsArr.Length == 0)
         {
@@ -122,20 +152,5 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsPro
                 logger.LogDebug("message sent to client: {clientId}", clientId);
             }
         }));
-    }
-
-    public Connection[] GetActiveClients()
-    {
-        var channelIds = subscriptionMap.Keys;
-        var channels = channelIds.Select(channelsProvider.GetChannelBySubscriberId).ToList();
-
-        return clientProvider
-            .GetClientConnectionsByIds(clientMap.Keys.ToArray())
-            .Select(clientId =>
-                new Connection
-                {
-                    ClientName = clientId.ClientName,
-                    ChannelName = channels.First(c => c.ChannelSubscriberId == clientId.ChannelSubscriberId).ChannelName
-                }).ToArray();
     }
 }

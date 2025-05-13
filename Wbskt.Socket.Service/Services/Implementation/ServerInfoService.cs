@@ -10,7 +10,7 @@ using Wbskt.Common.Services;
 
 namespace Wbskt.Socket.Service.Services.Implementation;
 
-public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonitor<SocketServerConfiguration> optionsMonitor, IServer server, IServerInfoProvider serverInfoProvider, IHostEnvironment environment, CoreServerConnection coreServerConnection, ICancellationService cancellationService) : IServerInfoService
+public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonitor<SocketServerConfiguration> optionsMonitor, IServer server, ICachedServerInfoProvider serverInfoProvider, IHostEnvironment environment, CoreServerConnection coreServerConnection, ICancellationService cancellationService) : IServerInfoService
 {
     private static bool _registered;
     private static ServerInfo _currentServerInfo = new() { Type = Constants.ServerType.SocketServer };
@@ -66,7 +66,7 @@ public class ServerInfoService(ILogger<ServerInfoService> logger, IOptionsMonito
             else
             {
                 logger.LogInformation("registering current server");
-                _serverId = serverInfoProvider.RegisterServer(_currentServerInfo);
+                _serverId = serverInfoProvider.Insert(_currentServerInfo);
                 CheckAndUpdatePublicDomainAddressFromAppSettings(optionsMonitor.CurrentValue);
                 _currentServerInfo.ServerId = _serverId;
                 _registered = true;
