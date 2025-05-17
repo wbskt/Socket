@@ -17,7 +17,7 @@ public class WebSocketsController(
     [HttpGet]
     public async Task ConnectAsync()
     {
-        var csid = User.GetChannelSubscriberId();
+        var chIds = User.GetChannelIds();
         var cid = User.GetClientId();
         var sid = User.GetSocketServerId();
         var cname = User.GetClientName();
@@ -31,7 +31,7 @@ public class WebSocketsController(
         {
             logger.LogWarning("client connection already exists with: {cname}", cname);
             logger.LogInformation("adding existing connection to the given list of channles");
-            webSocketContainer.AddChannelsForClient([csid], cid);
+            webSocketContainer.AddChannelsForClient(chIds, cid);
             HttpContext.Response.StatusCode = StatusCodes.Status302Found;
         }
         else if (HttpContext.WebSockets.IsWebSocketRequest)
@@ -40,7 +40,7 @@ public class WebSocketsController(
 
             try
             {
-                await webSocketContainer.Listen(webSocket, [csid], cid);
+                await webSocketContainer.Listen(webSocket, chIds, cid);
             }
             catch (Exception ex)
             {

@@ -5,6 +5,7 @@ using Wbskt.Common.Contracts;
 using Wbskt.Common.Extensions;
 using Wbskt.Common.Providers;
 using Wbskt.Common.Services;
+using Wbskt.Common.Utilities;
 
 namespace Wbskt.Socket.Service.Services.Implementation;
 
@@ -13,7 +14,7 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, ICachedChann
     /// <summary>
     /// Channel(sub) to client map. given a channel sub id, it will find all the client ids that subscribes to it.
     /// </summary>
-    private readonly ConcurrentDictionary<Guid, ConcurrentDictionary<int, bool>> channelClientsMap = new();
+    private readonly ConcurrentDictionary<int, ConcurrentKeys<int>> channelClientsMap = new();
 
     /// <summary>
     /// Client to Socket map each client will have only one socket connected. even if the client is subscribed to multiple channels
@@ -25,23 +26,21 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, ICachedChann
         return clientMap.ContainsKey(clientId);
     }
 
-    public void AddChannelsForClient(Guid[] channelSubscriberIds, int clientId)
+    public void AddChannelsForClient(int[] channelIds, int clientId)
     {
-        foreach (var channelSubscriberId in channelSubscriberIds)
+        foreach (var channelId in channelIds)
         {
-            var clientIds = channelClientsMap.GetOrAdd(channelSubscriberId, _ => new ConcurrentDictionary<int, bool>());
-            clientIds.TryAdd(clientId, true);
+            channelClientsMap.GetOrAdd(channelId, new ConcurrentKeys<int>([clientId]));
         }
     }
 
-    public async Task Listen(WebSocket webSocket, Guid[] channelSubscriberIds, int clientId)
+    public async Task Listen(WebSocket webSocket, int[] channelIds, int clientId)
     {
         clientMap[clientId] = webSocket;
 
-        foreach (var channelSubscriberId in channelSubscriberIds)
+        foreach (var channelId in channelIds)
         {
-            var clientIds = channelClientsMap.GetOrAdd(channelSubscriberId, _ => new ConcurrentDictionary<int, bool>());
-            clientIds.TryAdd(clientId, true);
+            channelClientsMap.GetOrAdd(channelId, new ConcurrentKeys<int>([clientId]));
         }
 
         try
@@ -95,7 +94,7 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, ICachedChann
         clientMap.Remove(clientId, out _);
         foreach (var clientIds in channelClientsMap.Values)
         {
-            clientIds.TryRemove(clientId, out _);
+            clientIds.Remove(clientId);
         }
     }
 
@@ -105,6 +104,7 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, ICachedChann
         var payloads = channels.Select(c => new ClientPayload
         {
             ChannelSubscriberId = c.ChannelSubscriberId,
+            ChannelId = c.ChannelId, // internal;
             Data = payload.Data,
             EnsureDelivery = payload.EnsureDelivery,
             PayloadId = payload.PayloadId,
@@ -112,7 +112,7 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, ICachedChann
         });
 
         // payload - cli[]
-        var payloadClientIdsArr = payloads.Select<ClientPayload, (ClientPayload Payload, ConcurrentDictionary<int, bool > ClientIds)>(cp => (cp, channelClientsMap[cp.ChannelSubscriberId])).ToArray();
+        var payloadClientIdsArr = payloads.Select<ClientPayload, (ClientPayload Payload, ConcurrentKeys<int> ClientIds)>(cp => (cp, channelClientsMap[cp.ChannelId])).ToArray();
 
         if (payloadClientIdsArr.Length == 0)
         {
@@ -123,7 +123,7 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, ICachedChann
             foreach (var cpcids in payloadClientIdsArr)
             {
                 var jsonPayload = JsonSerializer.Serialize(cpcids.Payload);
-                foreach (var clientId in cpcids.ClientIds.Keys)
+                foreach (var clientId in cpcids.ClientIds.GetKeys())
                 {
                     if (clientMap.TryGetValue(clientId, out var webSocket))
                     {
