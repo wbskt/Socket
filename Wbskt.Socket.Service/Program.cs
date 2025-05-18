@@ -1,8 +1,6 @@
-using System.Data.SqlClient;
 using Serilog;
 using Wbskt.Common;
 using Wbskt.Common.Extensions;
-using Wbskt.Common.Providers;
 using Wbskt.Common.Services;
 using Wbskt.Socket.Service.Services;
 using Wbskt.Socket.Service.Services.Implementation;
@@ -73,9 +71,7 @@ public static class Program
 
         app.MapControllers();
 
-        var connectionString = app.Services.GetRequiredService<IConnectionStringProvider>().ConnectionString;
         var cancellationService = app.Services.GetRequiredService<ICancellationService>();
-        SqlDependency.Start(connectionString);
 
         // register server
         app.Lifetime.ApplicationStarted.Register(() => app.Services.GetRequiredService<IServerInfoService>().RegisterServer().Wait());
@@ -83,7 +79,6 @@ public static class Program
         app.Lifetime.ApplicationStopping.Register(() =>
         {
             cancellationService.Cancel().Wait();
-            SqlDependency.Stop(connectionString);
         });
 
         await app.RunAsync(cancellationService.GetToken());
