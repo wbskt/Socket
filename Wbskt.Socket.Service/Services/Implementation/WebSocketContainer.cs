@@ -1,15 +1,15 @@
 ﻿using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text.Json;
-using Wbskt.Common.Contracts;
 using Wbskt.Common.Extensions;
-using Wbskt.Common.Providers;
+using Wbskt.Common.Readers;
+using Wbskt.Common.Records;
 using Wbskt.Common.Services;
 using Wbskt.Common.Utilities;
 
 namespace Wbskt.Socket.Service.Services.Implementation;
 
-public class WebSocketContainer(ILogger<WebSocketContainer> logger, ICachedChannelsProvider channelsProvider, ICancellationService cancellationService) : IWebSocketContainer
+public class WebSocketContainer(ILogger<WebSocketContainer> logger, IChannelsReader channelsReader, IPublishersReader publishersReader, IPublishersChannelsReader publishersChannelsReader, ICancellationService cancellationService) : IWebSocketContainer
 {
     /// <summary>
     /// Channel(sub) to client map. given a channel sub id, it will find all the client ids that subscribes to it.
@@ -100,15 +100,17 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, ICachedChann
 
     public void SendMessage(ClientPayload payload)
     {
-        var channels = channelsProvider.GetAllByChannelPublisherId(payload.PublisherId);
+        var publisher = publishersReader.GetByRef(payload.PublisherRef);
+        var channelIds = publishersChannelsReader.GetChannelIdsForPublisher(publisher.Id);
+        var channels = channelsReader.GetAllByIds(channelIds.ToArray());
         var payloads = channels.Select(c => new ClientPayload
         {
-            ChannelSubscriberId = c.ChannelSubscriberId,
-            ChannelId = c.ChannelId, // internal;
+            ChannelRef = c.ChannelRef,
+            ChannelId = c.Id, // internal;
             Data = payload.Data,
             EnsureDelivery = payload.EnsureDelivery,
             PayloadId = payload.PayloadId,
-            PublisherId = payload.PublisherId
+            PublisherRef = payload.PublisherRef
         });
 
         // payload - cli[]
@@ -116,7 +118,7 @@ public class WebSocketContainer(ILogger<WebSocketContainer> logger, ICachedChann
 
         if (payloadClientIdsArr.Length == 0)
         {
-            logger.LogInformation("no clients subscribed for the publisher: {publisher}", payload.PublisherId);
+            logger.LogInformation("no clients subscribed for the publisher: {publisher}", payload.PublisherRef);
         }
         else
         {

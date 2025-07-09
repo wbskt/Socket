@@ -1,5 +1,5 @@
 ﻿using System.Net.WebSockets;
-using Wbskt.Common.Contracts;
+using Wbskt.Common.Records;
 
 namespace Wbskt.Socket.Service.Services;
 
